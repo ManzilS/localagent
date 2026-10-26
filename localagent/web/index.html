@@ -1,0 +1,1491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LocalAgent</title>
+<meta name="theme-color" content="#17203A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="LocalAgent">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F3F5F9; --sheet:#FFFFFF; --ink:#17203A; --soft:#5A6482; --line:#DCE1EB;
+  --blue:#2D4BD6; --blue-ink:#FFFFFF; --hl:#F5D046; --ok:#2E8B57; --stop:#C2412D;
+  --hl-wash:rgba(245,208,70,.45);
+  --font:"Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r-sm:6px; --r-lg:14px;
+}
+@media (prefers-color-scheme: dark){:root{
+  --paper:#151A28; --sheet:#1D2336; --ink:#E7EAF3; --soft:#9AA3BF; --line:#2E3550;
+  --blue:#7D93FF; --blue-ink:#0E1430; --hl:#F5D046; --ok:#6CCB97; --stop:#F08A74; --hl-wash:rgba(245,208,70,.28);
+}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font:16px/1.55 var(--font);display:flex}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+a{color:var(--blue)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+/* rail */
+nav{width:232px;flex:none;padding:20px 14px;display:flex;flex-direction:column;gap:4px;border-right:1px solid var(--line)}
+.mark{font-weight:700;font-size:20px;letter-spacing:-.02em;padding:0 10px 18px}
+.mark span{display:block;font-weight:400;font-size:13px;color:var(--soft);letter-spacing:0}
+nav button.go{all:unset;cursor:pointer;padding:9px 10px;border-radius:var(--r-sm);color:var(--soft)}
+nav button.go:hover{color:var(--ink)}
+nav button.go.on{background:var(--sheet);color:var(--ink);font-weight:700;box-shadow:inset 3px 0 0 var(--blue)}
+nav .new{margin-bottom:14px}
+nav .foot{margin-top:auto;font-size:13px;color:var(--soft);padding:0 10px}
+nav .foot b{color:var(--ink);font-weight:700}
+
+/* buttons */
+.btn{border:1px solid var(--line);background:var(--sheet);border-radius:var(--r-sm);padding:9px 14px;cursor:pointer}
+.btn:hover{border-color:var(--soft)}
+.btn.primary{background:var(--blue);color:var(--blue-ink);border-color:var(--blue);font-weight:700}
+.btn.danger{background:var(--stop);border-color:var(--stop);color:#fff;font-weight:700}
+.btn:disabled{opacity:.5;cursor:default}
+
+main{flex:1;min-width:0;display:flex;flex-direction:column;height:100%}
+.page{display:none;flex:1;min-height:0;overflow:auto}
+.page.on{display:flex;flex-direction:column}
+.wrap{max-width:760px;width:100%;margin:0 auto;padding:36px 28px}
+h1{font-size:30px;line-height:1.15;letter-spacing:-.02em;margin:0 0 6px}
+h2{font-size:20px;letter-spacing:-.01em;margin:28px 0 8px}
+.lede{color:var(--soft);margin:0 0 24px;max-width:60ch}
+
+/* chat */
+#thread{flex:1;overflow:auto}
+#thread .wrap{padding-bottom:20px}
+.hello h1{font-size:40px;max-width:16ch}
+.ideas{display:flex;flex-direction:column;gap:8px;margin-top:22px;max-width:560px}
+.ideas button{all:unset;cursor:pointer;padding:12px 14px;border-left:3px solid var(--line);color:var(--ink)}
+.ideas button:hover{border-left-color:var(--blue);background:var(--sheet)}
+.you{margin:28px 0 10px;font-weight:700;font-size:18px;white-space:pre-wrap}
+.you small{display:block;font-weight:400;color:var(--soft);font-size:14px}
+.trail{list-style:none;margin:6px 0 14px;padding:0}
+.trail li{padding:5px 8px;margin-left:-8px;color:var(--soft);cursor:pointer;border-radius:4px}
+.trail li .chk{display:inline-block;width:20px;color:var(--ok)}
+.trail li.bad .chk{color:var(--stop)}
+.trail li.now{color:var(--ink)}
+.trail li.now .txt{background:linear-gradient(transparent 55%,var(--hl-wash) 55%);animation:swipe .5s ease-out}
+@keyframes swipe{from{background-size:0 100%}to{background-size:100% 100%}}
+.trail li .txt{background-repeat:no-repeat}
+.caret{display:inline-block;width:8px;height:1.1em;background:var(--blue);vertical-align:text-bottom;margin-left:2px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.trail li pre{display:none;white-space:pre-wrap;font-size:13px;background:var(--sheet);border:1px solid var(--line);padding:10px;border-radius:var(--r-sm);max-height:280px;overflow:auto;color:var(--ink);cursor:text}
+.trail li.open pre{display:block}
+.trail li.handoff{color:var(--ink);font-style:italic}
+.ask{border:2px solid var(--hl);background:var(--sheet);border-radius:var(--r-lg);padding:16px 18px;margin:10px 0 16px}
+.ask p{margin:0 0 12px;font-weight:700}
+.ask .row{display:flex;gap:8px}
+.ask.done{border-color:var(--line);opacity:.75;padding:12px 18px}
+.ask.done p{margin:0}
+.ask.done .row{display:none}
+.peek{margin:6px 0 14px;max-width:420px;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+.peek img{display:block;width:100%}
+.answer{line-height:1.65}
+.answer pre{background:var(--sheet);border:1px solid var(--line);padding:12px;border-radius:var(--r-sm);overflow:auto;font-size:14px}
+.answer code{font-size:.92em;background:var(--sheet);border:1px solid var(--line);padding:0 4px;border-radius:4px}
+.answer pre code{border:0;padding:0}
+.answer table{border-collapse:collapse;margin:10px 0}
+.answer th,.answer td{border-bottom:1px solid var(--line);padding:6px 12px;text-align:left}
+.err{color:var(--stop);font-weight:700}
+
+.composer{border-top:1px solid var(--line);background:var(--paper)}
+.composer .wrap{padding:14px 28px 20px}
+.box{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r-lg);padding:12px 14px}
+.box:focus-within{border-color:var(--blue)}
+textarea{width:100%;border:0;background:transparent;resize:none;outline:none!important;max-height:220px;font-size:17px}
+.bar{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:13px;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+.speed{display:flex;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;margin-left:auto}
+.speed button{border:0;background:transparent;padding:7px 12px;cursor:pointer;color:var(--soft);font-size:14px}
+.speed button.on{background:var(--ink);color:var(--paper)}
+.hint{font-size:13px;color:var(--soft);margin-top:8px}
+
+/* settings-ish */
+.item{display:grid;grid-template-columns:1fr auto;gap:6px 16px;align-items:center;padding:18px 0;border-bottom:1px solid var(--line)}
+.item:first-of-type{border-top:1px solid var(--line)}
+.item h3{margin:0;font-size:17px}
+.item p{margin:0;color:var(--soft);font-size:14px;grid-column:1}
+.item .act{grid-row:1 / span 2;grid-column:2;display:flex;gap:8px;align-items:center}
+.state{font-size:14px;font-weight:700}
+.state.ok{color:var(--ok)} .state.no{color:var(--soft)} .state.warn{color:var(--stop)}
+.prog{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:8px;grid-column:1 / -1}
+.prog i{display:block;height:100%;width:0;background:var(--blue);transition:width .3s}
+label.line{display:flex;gap:10px;align-items:flex-start;padding:8px 0;cursor:pointer}
+label.line input{margin-top:5px}
+input[type=text],input[type=password],select{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--sheet)}
+.field{margin:14px 0}
+.field span{display:block;font-weight:700;margin-bottom:6px}
+.note{font-size:14px;color:var(--soft);margin-top:6px}
+
+/* wizard */
+#wizard{position:fixed;inset:0;background:var(--paper);z-index:20;display:none}
+#wizard.on{display:flex}
+#wizard aside{width:260px;padding:36px 24px;border-right:1px solid var(--line)}
+#wizard ol{list-style:none;padding:0;margin:24px 0 0;counter-reset:s}
+#wizard ol li{counter-increment:s;padding:8px 0;color:var(--soft)}
+#wizard ol li::before{content:counter(s);display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;border:1px solid var(--line);margin-right:10px;font-size:13px}
+#wizard ol li.on{color:var(--ink);font-weight:700}
+#wizard ol li.on::before{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+#wizard ol li.done::before{content:"✓";color:var(--ok);border-color:var(--ok)}
+#wizard section{flex:1;overflow:auto}
+.wfoot{display:flex;gap:10px;margin-top:32px}
+.wfoot .skip{margin-right:auto}
+
+.badge[hidden]{display:none!important}
+a.btn{text-decoration:none;display:inline-block}
+.badge{display:inline-block;min-width:20px;padding:0 6px;border-radius:99px;background:var(--hl);color:#17203A;font-size:12px;font-weight:700;text-align:center;margin-left:6px}
+.trail li.warn{color:var(--stop)}
+.mic{border:1px solid var(--line);background:var(--sheet);border-radius:var(--r-sm);padding:6px 12px;cursor:pointer}
+.mic.rec{background:var(--stop);border-color:var(--stop);color:#fff;font-weight:700}
+.aloud{font-size:14px;color:var(--soft);display:flex;gap:6px;align-items:center;cursor:pointer}
+textarea.big{width:100%;min-height:180px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--sheet);padding:10px 12px;font-size:15px;resize:vertical;outline:revert!important}
+.row2{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.mini{font-size:13px;padding:5px 10px}
+.item details{grid-column:1 / -1}
+.item details pre{white-space:pre-wrap;font-size:13px;background:var(--sheet);border:1px solid var(--line);padding:10px;border-radius:var(--r-sm);max-height:300px;overflow:auto}
+.code{font-size:28px;font-weight:700;letter-spacing:.2em}
+.risk{color:var(--stop);font-weight:700}
+.unread h3::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--blue);margin-right:8px;vertical-align:middle}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:var(--r-sm);z-index:40;display:none;max-width:90vw}
+
+/* connections */
+.cgroup{font-size:15px;margin:20px 0 8px;color:var(--soft)}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.ctile{all:unset;cursor:pointer;background:var(--sheet);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.ctile:hover,.ctile.on{border-color:var(--blue)}
+.ctile.on{box-shadow:inset 0 0 0 1px var(--blue)}
+.ctile span{font-size:12px;color:var(--soft)}
+.ctile.done span{color:var(--ok);font-weight:700}
+.cform{background:var(--sheet);border:1px solid var(--blue);border-radius:var(--r-lg);padding:14px 16px;margin:10px 0}
+.cform p{margin:0 0 10px}
+.cform .steps{margin:8px 0 14px;padding-left:22px}
+.card.gcard{border:2px solid var(--blue)}
+.gcard .gsvc{padding:4px 0}
+.gbtn{font-size:16px;padding:11px 18px}
+details.alt{margin-top:10px}
+details.alt summary{cursor:pointer;padding:4px 0}
+.cform .steps li{margin:4px 0}
+.cform details summary{cursor:pointer;margin-bottom:8px}
+details.adv{margin-top:28px}
+details.adv summary{cursor:pointer;padding:8px 0}
+
+/* for you */
+.card{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px;margin:12px 0}
+.card h3{margin:0 0 4px;font-size:17px;line-height:1.35}
+.card .why{color:var(--soft);font-size:14px;margin:0}
+.card .tag{display:inline-block;font-size:12px;font-weight:700;color:var(--soft);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.card .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.card .row .quiet{all:unset;cursor:pointer;color:var(--soft);font-size:13px;margin-left:auto;text-decoration:underline}
+.card.auto{border-left:4px solid var(--ok)}
+.card .note2{font-size:14px;margin-top:10px;padding:8px 10px;border-radius:var(--r-sm);background:var(--hl-wash)}
+.areas{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px}
+.areas label{border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;background:var(--sheet);font-size:14px}
+.areas label:has(input:checked){background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.areas input{position:absolute;opacity:0;pointer-events:none}
+.levels label{display:block;padding:6px 0;cursor:pointer}
+.hello .ideas button small{display:block;color:var(--soft);font-size:13px}
+
+/* tasks */
+.brains{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}
+.bchip{font-size:13px;border:1px solid var(--line);background:var(--sheet);border-radius:999px;padding:3px 11px;color:var(--soft)}
+.bchip b{color:var(--ink)}
+.bchip i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:6px;vertical-align:1px}
+.bchip.rest i{background:var(--hl)}
+.newtask textarea{min-height:52px}
+.pick{border:1px solid var(--line);background:var(--paper);border-radius:var(--r-sm);padding:6px 8px;font-size:14px;width:auto}
+.filters{display:flex;gap:6px;margin:22px 0 4px}
+.filters button{border:1px solid var(--line);background:transparent;border-radius:999px;padding:4px 12px;cursor:pointer;color:var(--soft);font-size:14px}
+.filters button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.task{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;margin:10px 0}
+.task.waiting{border:2px solid var(--hl)}
+.task .top{display:flex;gap:10px;align-items:flex-start}
+.task .top h3{margin:0;font-size:16px;flex:1;line-height:1.35;cursor:pointer;overflow-wrap:anywhere}
+.task .meta{font-size:13px;color:var(--soft);margin-top:4px}
+.pill{font-size:12px;font-weight:700;border-radius:99px;padding:2px 9px;white-space:nowrap;flex:none}
+.pill.queued{background:var(--line);color:var(--ink)} .pill.running{background:var(--blue);color:var(--blue-ink)}
+.pill.waiting{background:var(--hl);color:#17203A} .pill.done{background:transparent;color:var(--ok);border:1px solid var(--ok)}
+.pill.failed{background:var(--stop);color:#fff} .pill.stopped{background:transparent;color:var(--soft);border:1px solid var(--line)}
+.task .now{font-size:14px;margin-top:8px;color:var(--ink)}
+.task .now::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--blue);margin-right:8px;vertical-align:1px;animation:blink 1.2s steps(2) infinite}
+.task .body{display:none;margin-top:10px}
+.task.open .body{display:block}
+.task .steps{list-style:none;padding:0;margin:0 0 10px;font-size:14px;color:var(--soft)}
+.task .steps li{padding:2px 0}
+.task .steps li.bad{color:var(--stop)}
+.task .ask{margin:10px 0 0}
+.task .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.task .reply{display:flex;gap:8px;margin-top:10px}
+.task .reply input{flex:1}
+.qr{display:inline-block;background:#fff;padding:8px;border-radius:var(--r-sm);border:1px solid var(--line)}
+.qr svg{display:block;width:220px;height:220px}
+.linkbox{display:flex;gap:8px;margin-top:10px}
+.linkbox input{flex:1;font-size:13px}
+
+/* phone layout */
+#tabs{display:none}
+@media (max-width:760px){
+  body{flex-direction:column}
+  nav{display:none;position:fixed;inset:0;z-index:30;width:auto;background:var(--paper);overflow:auto;padding:20px 18px calc(84px + env(safe-area-inset-bottom))}
+  nav.sheet{display:flex}
+  nav button.go{padding:13px 10px;font-size:17px}
+  #wizard aside{display:none}
+  .wrap{padding:20px 16px}
+  h1{font-size:26px} .hello h1{font-size:30px}
+  main{height:auto;flex:1;min-height:0}
+  .composer .wrap{padding:10px 12px 12px}
+  .speed{margin-left:0}
+  .aloud,.hint,#mic{display:none}
+  .item{grid-template-columns:1fr}
+  .item .act{grid-row:auto;grid-column:1;flex-wrap:wrap}
+  .row2{grid-template-columns:1fr}
+  #tabs{display:flex;flex:none;border-top:1px solid var(--line);background:var(--sheet);padding-bottom:env(safe-area-inset-bottom);z-index:35}
+  #tabs button{all:unset;flex:1;text-align:center;padding:12px 0 10px;font-size:14px;color:var(--soft);cursor:pointer;position:relative}
+  #tabs button.on{color:var(--ink);font-weight:700;box-shadow:inset 0 3px 0 var(--blue)}
+  #tabs .badge{position:absolute;top:4px;margin-left:2px}
+  .toast{bottom:calc(76px + env(safe-area-inset-bottom))}
+}
+</style>
+</head>
+<body>
+<nav aria-label="Main">
+  <div class="mark">LocalAgent<span>Works on your computer. Never deletes.</span></div>
+  <button class="btn new" id="newChat">New chat</button>
+  <button class="go" data-page="foryou">For you <span class="badge" id="fbadge" hidden></span></button>
+  <button class="go on" data-page="chat">Chat</button>
+  <button class="go" data-page="tasks">Tasks <span class="badge" id="tbadge" hidden></span></button>
+  <button class="go" data-page="inbox">Inbox <span class="badge" id="badge" hidden></span></button>
+  <button class="go" data-page="auto">Automations</button>
+  <button class="go" data-page="skills">Skills</button>
+  <button class="go" data-page="connect">Connections</button>
+  <button class="go" data-page="brains">Brains</button>
+  <button class="go" data-page="memory">Memory</button>
+  <button class="go" data-page="trash">Trash</button>
+  <button class="go" data-page="settings">Settings</button>
+  <div class="foot" id="footBrain">Starting…</div>
+</nav>
+
+<main>
+  <!-- CHAT -->
+  <div class="page on" id="p-chat">
+    <div id="thread"><div class="wrap" id="log">
+      <div class="hello" id="hello">
+        <h1>What do you want done?</h1>
+        <p class="lede">Ask in plain words. I can work in your files, research online, read documents and photos, and use apps on this computer. I'll check with you before anything risky.</p>
+        <div class="ideas">
+          <button>Open Spotify and play some focus music</button>
+          <button>Find the three best-reviewed budget monitors this month and compare them in a table</button>
+          <button>Sort my Downloads folder into folders by file type</button>
+          <button>Read the PDFs in my Documents folder and summarize each in a few lines</button>
+        </div>
+      </div>
+    </div></div>
+    <div class="composer"><div class="wrap">
+      <div class="box">
+        <textarea id="input" rows="1" placeholder="Tell LocalAgent what to do…" aria-label="Message"></textarea>
+        <div class="bar">
+          <label class="btn" style="padding:6px 12px">Attach<input id="attach" type="file" multiple hidden></label>
+          <button class="mic" id="mic" title="Hold to talk, or click to start and click again to stop">Speak</button>
+          <label class="aloud"><input type="checkbox" id="aloud"> Read replies aloud</label>
+          <div class="chips" id="files"></div>
+          <select id="cBrain" class="pick" aria-label="Brain" title="Which brain answers. Auto picks for each job."></select>
+          <div class="speed" role="group" aria-label="Speed">
+            <button data-m="quick" title="Only the model on this computer. Fastest, fully private.">Fast</button>
+            <button data-m="auto" class="on" title="Starts on this computer and calls in a stronger brain if it gets stuck.">Balanced</button>
+            <button data-m="deep" title="Uses your strongest connected brain from the start.">Best</button>
+          </div>
+          <button class="btn primary" id="send">Send</button>
+          <button class="btn danger" id="stop" hidden>Stop</button>
+        </div>
+      </div>
+      <div class="hint">Emergency stop while it's using your mouse: push the pointer into any corner of the screen.</div>
+    </div></div>
+  </div>
+
+  <!-- FOR YOU -->
+  <div class="page" id="p-foryou"><div class="wrap">
+    <h1>For you</h1>
+    <p class="lede">Things LocalAgent noticed it could do for you. Say yes and it does them. Say no and it learns. You don't have to ask for anything.</p>
+    <div id="fyBox"><p class="note">Looking…</p></div>
+  </div></div>
+
+  <!-- TASKS -->
+  <div class="page" id="p-tasks"><div class="wrap">
+    <h1>Tasks</h1>
+    <p class="lede">Hand off several jobs at once. Each one goes to the brain that suits it, runs on its own, and tells you when it's done — here and on your phone.</p>
+    <div class="brains" id="brainStrip"></div>
+    <div class="box newtask">
+      <textarea id="tInput" rows="2" placeholder="What should LocalAgent do? e.g. Research the best 27-inch monitors under $300" aria-label="New task"></textarea>
+      <div class="bar">
+        <label class="note" for="tBrain">Brain</label><select id="tBrain" class="pick"></select>
+        <button class="btn primary" id="tGo" style="margin-left:auto">Start task</button>
+      </div>
+    </div>
+    <div class="filters" role="group" aria-label="Show">
+      <button data-f="active" class="on">Active</button><button data-f="done">Finished</button><button data-f="all">All</button>
+    </div>
+    <div id="taskList"></div>
+  </div></div>
+
+  <!-- BRAINS -->
+  <div class="page" id="p-brains"><div class="wrap">
+    <h1>Brains</h1>
+    <p class="lede">LocalAgent thinks with a model on this computer. When a job is too hard for it, it can borrow a stronger brain from a subscription you already pay for — no API keys.</p>
+    <div id="brainsBox"></div>
+  </div></div>
+
+  <!-- SETTINGS -->
+  <div class="page" id="p-settings"><div class="wrap">
+    <h1>Settings</h1>
+    <p class="lede">Changes apply to new chats.</p>
+    <div id="settingsBox"></div>
+  </div></div>
+
+  <!-- INBOX -->
+  <div class="page" id="p-inbox"><div class="wrap">
+    <h1>Inbox</h1>
+    <p class="lede">Results from automations and things LocalAgent noticed while you were away. Requests waiting for your OK show first.</p>
+    <div id="inboxBox"></div>
+  </div></div>
+
+  <!-- AUTOMATIONS -->
+  <div class="page" id="p-auto"><div class="wrap">
+    <h1>Automations</h1>
+    <p class="lede">Things LocalAgent does on its own while the app is open. You can also just ask in chat: “every weekday at 8, summarize my calendar”.</p>
+    <div id="autoBox"></div>
+  </div></div>
+
+  <!-- SKILLS -->
+  <div class="page" id="p-skills"><div class="wrap">
+    <h1>Skills</h1>
+    <p class="lede">Step-by-step know-how LocalAgent follows for certain jobs. It can also save new ones when you teach it how you like something done.</p>
+    <div id="skillsBox"></div>
+  </div></div>
+
+  <!-- CONNECT -->
+  <div class="page" id="p-connect"><div class="wrap">
+    <h1>Connections</h1>
+    <p class="lede">Connect your email, calendar, notes and apps. The more LocalAgent can see, the more it can do for you without being asked. Passwords stay in your computer's password vault.</p>
+    <div id="connectBox"></div>
+  </div></div>
+
+  <!-- MEMORY -->
+  <div class="page" id="p-memory"><div class="wrap">
+    <h1>Memory</h1>
+    <p class="lede">What LocalAgent remembers about you and your work. It's stored only on this computer. Retire anything that's wrong or out of date.</p>
+    <div id="memoryBox"></div>
+  </div></div>
+
+  <!-- TRASH -->
+  <div class="page" id="p-trash"><div class="wrap">
+    <h1>Trash</h1>
+    <p class="lede">LocalAgent never deletes anything. Whatever it removes or replaces ends up here, and you can put it back.</p>
+    <div id="trashBox"></div>
+  </div></div>
+</main>
+
+<div id="tabs" role="tablist" aria-label="Sections">
+  <button data-tab="foryou">For you <span class="badge" id="mfbadge" hidden></span></button>
+  <button data-tab="tasks">Tasks <span class="badge" id="mtbadge" hidden></span></button>
+  <button data-tab="chat">Chat</button>
+  <button data-tab="inbox">Inbox <span class="badge" id="mibadge" hidden></span></button>
+  <button data-tab="more">More</button>
+</div>
+
+<!-- FIRST RUN -->
+<div id="wizard" role="dialog" aria-label="Set up LocalAgent">
+  <aside>
+    <div class="mark">LocalAgent</div>
+    <ol id="wsteps"><li>Welcome</li><li>Your computer</li><li>Local brain</li><li>Subscriptions</li><li>Your rules</li></ol>
+  </aside>
+  <section><div class="wrap" id="wbody"></div></section>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async (path, body) => {
+  const r = await fetch(path, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  if (!r.ok) { let d; try { d = (await r.json()).detail } catch(e) {} throw new Error(d || r.statusText); }
+  return r.json();
+};
+async function sse(path, body, onEvent){
+  const r = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  if (!r.ok) { let d; try { d = (await r.json()).detail } catch(e) {} throw new Error(d || r.statusText); }
+  const reader = r.body.getReader(), dec = new TextDecoder(); let buf = "";
+  for (;;) {
+    const {value, done} = await reader.read(); if (done) break;
+    buf += dec.decode(value, {stream: true}); let i;
+    while ((i = buf.indexOf("\n\n")) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 2);
+      if (line.startsWith("data: ")) onEvent(JSON.parse(line.slice(6))); }
+  }
+}
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 4200); }
+
+let S = null;                       // last /api/status
+let session = newId(), mode = "auto", busy = false, attached = [];
+function newId(){ return crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2); }
+
+/* ---------- navigation ---------- */
+const startView = new URLSearchParams(location.search).get("view");
+const phoneSized = () => matchMedia("(max-width:760px)").matches;
+let page = "chat";
+document.querySelectorAll("nav .go").forEach(b => b.onclick = () => show(b.dataset.page));
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+  if (b.dataset.tab === "more") { const open = !$("nav").classList.contains("sheet"); $("nav").classList.toggle("sheet", open);
+    document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", open ? x === b : x.dataset.tab === page)); return; }
+  show(b.dataset.tab); });
+function show(p){
+  page = p; $("nav").classList.remove("sheet");
+  document.querySelectorAll("nav .go").forEach(x => x.classList.toggle("on", x.dataset.page === page));
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x.dataset.tab === page ||
+    (x.dataset.tab === "more" && !["foryou", "tasks", "chat", "inbox"].includes(page))));
+  document.querySelectorAll(".page").forEach(x => x.classList.toggle("on", x.id === "p-" + page));
+  if (page === "tasks") renderTasks(true);
+  if (page === "foryou") renderForYou();
+  if (page === "brains") renderBrains($("#brainsBox"));
+  if (page === "settings") renderSettings();
+  if (page === "trash") renderTrash();
+  if (page === "inbox") renderInbox();
+  if (page === "auto") renderAuto();
+  if (page === "skills") renderSkills();
+  if (page === "connect") renderConnect();
+  if (page === "memory") renderMemory();
+}
+
+async function refresh(){
+  S = await api("/api/status");
+  const chain = S.brain_chain || [];
+  const n = (S.unread || 0) + (S.approvals_waiting || 0);
+  for (const id of ["#badge", "#mibadge"]) { $(id).hidden = !n; $(id).textContent = n; }
+  const a = S.tasks_active || 0;
+  for (const id of ["#tbadge", "#mtbadge"]) { $(id).hidden = !a; $(id).textContent = a; }
+  const f = S.for_you || 0;
+  for (const id of ["#fbadge", "#mfbadge"]) { $(id).hidden = !f; $(id).textContent = f; }
+  fillBrainPickers();
+  const local = String(S.main_label).replace(/^ollama:/, "");
+  $("#footBrain").innerHTML = `Thinking with <b>${esc(local)}</b> on this computer` +
+    (chain.length ? `<br>Backup brain: <b>${esc(chain[0])}</b>` : `<br>No backup brain connected`);
+  return S;
+}
+
+/* ---------- plain-language activity ---------- */
+const short = (s, n = 60) => { s = String(s ?? ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
+const base = p => String(p ?? "").split(/[\\/]/).filter(Boolean).pop() || p;
+const host = u => { try { return new URL(u.includes("://") ? u : "https://" + u).hostname.replace(/^www\./, ""); } catch(e) { return short(u, 40); } };
+function say(name, a){
+  a = a || {};
+  const m = {
+    read_file: () => `Reading ${base(a.path)}`, write_file: () => `Writing ${base(a.path)}`, edit_file: () => `Editing ${base(a.path)}`,
+    append_file: () => `Adding to ${base(a.path)}`, list_dir: () => `Looking in ${base(a.path || "your workspace")}`,
+    find_files: () => `Finding files named ${a.pattern}`, search_text: () => `Searching files for “${short(a.pattern, 40)}”`,
+    move_path: () => `Moving ${base(a.source)} to ${base(a.destination)}`, copy_path: () => `Copying ${base(a.source)}`,
+    make_dir: () => `Making folder ${base(a.path)}`, trash_path: () => `Moving ${base(a.path)} to the trash`,
+    list_trash: () => "Checking the trash", restore_from_trash: () => "Restoring from the trash",
+    run_shell: () => `Running a command: ${short(a.command, 50)}`, run_python: () => "Running a small program",
+    start_process: () => `Starting ${short(a.command, 40)}`, read_process: () => "Checking on a running task",
+    stop_process: () => "Stopping a running task", list_processes: () => "Checking running tasks",
+    web_search: () => `Searching the web for “${short(a.query, 50)}”`, web_fetch: () => `Reading ${host(a.url)}`,
+    download_file: () => `Downloading from ${host(a.url)}`, browser: () => a.action === "goto" ? `Opening ${host(a.url)} in a browser` : `Using the browser (${a.action})`,
+    read_document: () => `Reading ${base(a.path)}`, look_at: () => a.path === "screen" ? "Looking at the screen" : `Looking at ${base(a.path)}`,
+    remember: () => "Remembering that for next time", recall: () => "Checking what I remember", archive_memory: () => "Updating my memory",
+    delegate: () => `Splitting the work into ${(a.tasks || []).length || "several"} parts`, contemplate: () => "Thinking it through from several angles",
+    open_app: () => `Opening ${a.name}`, see_screen: () => "Looking at the screen", find_on_screen: () => `Looking for ${short(a.description, 40)}`,
+    click: () => `Clicking ${/^e\d+$/i.test(a.target || "") ? "an item" : short(a.target, 40)}`, type_text: () => `Typing “${short(a.text, 40)}”`,
+    press_keys: () => `Pressing ${a.keys}`, scroll: () => `Scrolling ${a.direction}`, list_windows: () => "Checking open windows",
+    focus_window: () => `Switching to ${a.title}`, wait: () => `Waiting ${a.seconds}s`,
+    use_skill: () => `Following the “${a.name}” skill`, save_skill: () => `Saving a new skill: ${a.name}`, install_skill: () => "Installing a skill",
+    schedule_task: () => `Scheduling: ${short(a.task, 40)} (${a.when})`, list_automations: () => "Checking automations",
+    pause_automation: () => "Pausing an automation", send_phone_message: () => "Sending to your phone",
+    connector_tools: () => `Checking what ${a.connector} can do`, use_connector: () => `Using ${a.connector}: ${String(a.tool || "").replace(/_/g, " ")}`,
+  }[name];
+  if (m) return m();
+  if (name.includes("__")) { const [srv, t] = name.split("__"); return `Using ${srv}: ${t.replace(/_/g, " ")}`; }
+  return name.replace(/_/g, " ");
+}
+
+/* ---------- markdown (small, safe) ---------- */
+function md(src){
+  const blocks = [];
+  src = String(src).replace(/```(\w*)\n?([\s\S]*?)```/g, (_, l, c) => { blocks.push(`<pre><code>${esc(c)}</code></pre>`); return `\u0000${blocks.length - 1}\u0000`; });
+  let h = esc(src)
+    .replace(/^### (.*)$/gm, "<h3>$1</h3>").replace(/^## (.*)$/gm, "<h2>$1</h2>").replace(/^# (.*)$/gm, "<h2>$1</h2>")
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+  h = h.replace(/\|(.+)\|\n\|[-:| ]+\|\n((?:\|.*\|(?:\n|$))+)/g, (m, head, rows) => {
+    const cells = r => r.split("|").slice(1, -1).map(c => c.trim());
+    return "<table><tr>" + cells("|" + head + "|").map(c => `<th>${c}</th>`).join("") + "</tr>" +
+      rows.trim().split("\n").map(r => "<tr>" + cells(r).map(c => `<td>${c}</td>`).join("") + "</tr>").join("") + "</table>";
+  });
+  h = h.replace(/(?:^|\n)((?:[-*] .*(?:\n|$))+)/g, (m, l) => "\n<ul>" + l.trim().split("\n").map(x => "<li>" + x.slice(2) + "</li>").join("") + "</ul>");
+  h = h.replace(/(?:^|\n)((?:\d+\. .*(?:\n|$))+)/g, (m, l) => "\n<ol>" + l.trim().split("\n").map(x => "<li>" + x.replace(/^\d+\. /, "") + "</li>").join("") + "</ol>");
+  h = h.split(/\n{2,}/).map(p => /^\s*<(h\d|ul|ol|pre|table)/.test(p) || p.includes("\u0000") ? p : "<p>" + p.replace(/\n/g, "<br>") + "</p>").join("");
+  return h.replace(/\u0000(\d+)\u0000/g, (_, i) => blocks[+i]);
+}
+
+/* ---------- chat ---------- */
+const thread = $("#thread");
+const scrollDown = () => thread.scrollTop = thread.scrollHeight;
+function setBusy(b){ busy = b; $("#send").hidden = b; $("#stop").hidden = !b; }
+
+async function send(text){
+  text = text.trim(); if (!text || busy) return;
+  $("#hello")?.remove();
+  const files = attached.slice(); attached = []; $("#files").innerHTML = "";
+  const you = document.createElement("div"); you.className = "you";
+  you.innerHTML = esc(text) + (files.length ? `<small>Attached: ${files.map(f => esc(base(f))).join(", ")}</small>` : "");
+  const trail = document.createElement("ol"); trail.className = "trail";
+  const answer = document.createElement("div"); answer.className = "answer";
+  $("#log").append(you, trail, answer);
+  let current = null, peek = null, live = "", tick = 0;
+  const step = (txt, cls = "") => {
+    current?.classList.remove("now");
+    const li = document.createElement("li"); li.className = "now " + cls;
+    li.innerHTML = `<span class="chk"></span><span class="txt">${esc(txt)}</span><pre></pre>`;
+    li.onclick = e => { if (e.target.tagName !== "PRE") li.classList.toggle("open"); };
+    trail.append(li); current = li; return li;
+  };
+  const thinking = step("Thinking…");
+  setBusy(true); scrollDown();
+  try {
+    await sse("/api/chat", {session, message: text, mode, files, brain: $("#cBrain").value || "auto"}, ev => {
+      if (ev.subagent) { if (ev.type === "tool_call") step("  " + say(ev.name, ev.arguments)); return; }
+      if (ev.type === "token") {  // live text while the model writes
+        live += ev.text; if (current === thinking) { thinking.remove(); current = null; }
+        if (!tick) tick = requestAnimationFrame(() => { tick = 0; answer.innerHTML = md(live) + '<span class="caret"></span>'; scrollDown(); });
+        return; }
+      if (ev.type === "tool_call") { live = ""; if (tick) { cancelAnimationFrame(tick); tick = 0; } answer.innerHTML = ""; if (current === thinking) thinking.remove(); step(say(ev.name, ev.arguments)).querySelector("pre").textContent = JSON.stringify(ev.arguments, null, 2); }
+      else if (ev.type === "tool_result" && current) {
+        current.querySelector(".chk").textContent = ev.ok ? "✓" : "✕"; if (!ev.ok) current.classList.add("bad");
+        current.querySelector("pre").textContent += "\n\n" + ev.output;
+      }
+      else if (ev.type === "escalate") step(`Asking ${ev.to} for help`, "handoff");
+      else if (ev.type === "warning") { const w = step("⚠ " + ev.text, "warn"); w.querySelector(".chk").textContent = ""; }
+      else if (ev.type === "screen") {
+        if (!peek) { peek = document.createElement("div"); peek.className = "peek"; peek.innerHTML = "<img alt='What LocalAgent sees on your screen'>"; trail.after(peek); }
+        peek.querySelector("img").src = "/api/screen?path=" + encodeURIComponent(ev.path) + "&t=" + Date.now();
+      }
+      else if (ev.type === "approval") {
+        const box = document.createElement("div"); box.className = "ask";
+        box.innerHTML = `<p>LocalAgent wants to do this: ${esc(ev.text)}</p><div class="row"><button class="btn primary">Allow</button><button class="btn">Don't allow</button></div>`;
+        const [yes, no] = box.querySelectorAll("button");
+        const answerIt = async allow => { yes.disabled = no.disabled = true; box.classList.add("done");
+          box.querySelector("p").textContent = allow ? "Allowed." : "Not allowed — LocalAgent will find another way or ask you.";
+          try { await api("/api/approve", {session, id: ev.id, allow}); } catch(e) { toast(e.message); } };
+        yes.onclick = () => answerIt(true); no.onclick = () => answerIt(false);
+        trail.after(box); yes.focus();
+      }
+      else if (ev.type === "final") { if (tick) { cancelAnimationFrame(tick); tick = 0; } current?.classList.remove("now"); if (current === thinking) thinking.remove(); answer.innerHTML = md(ev.text); speak(ev.text); }
+      else if (ev.type === "error") answer.innerHTML = `<p class="err">${esc(ev.text)}</p>`;
+      scrollDown();
+    });
+  } catch(e) { answer.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+  current?.classList.remove("now");
+  setBusy(false); scrollDown(); refresh();
+}
+
+const input = $("#input");
+input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = input.scrollHeight + "px"; });
+input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); const t = input.value; input.value = ""; input.style.height = "auto"; send(t); }});
+$("#send").onclick = () => { const t = input.value; input.value = ""; send(t); };
+$("#stop").onclick = () => api("/api/stop", {session}).then(() => toast("Stopping…"));
+document.querySelectorAll(".ideas button").forEach(b => b.onclick = () => send(b.textContent));
+document.querySelectorAll(".speed button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".speed button").forEach(x => x.classList.toggle("on", x === b)); mode = b.dataset.m; });
+$("#newChat").onclick = async () => { await api("/api/new", {session}).catch(() => {}); session = newId(); location.hash = ""; location.reload(); };
+$("#attach").onchange = async e => {
+  for (const f of e.target.files) {
+    const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
+    const res = await api("/api/upload", {name: f.name, data});
+    attached.push(res.path);
+    const c = document.createElement("span"); c.className = "chip"; c.textContent = res.name; $("#files").append(c);
+  }
+  e.target.value = "";
+};
+
+/* ---------- for you ---------- */
+const KIND_NAMES = {disk_space: "Disk space checks", morning_brief: "Morning brief", summarize_new_doc: "Summaries of new documents",
+  weekly_recap: "Friday recap", tidy_downloads: "Tidying Downloads", automate_repeat: "Turning repeat requests into automations",
+  retry_failed: "Retrying failed tasks", email_reply: "Reply drafts for important email", meeting_prep: "Meeting prep",
+  connect_app: "Suggestions to connect apps"};
+const kindName = k => KIND_NAMES[k] || (k.startsWith("idea:") ? "Ideas about " + k.slice(5) : k);
+const SRC_TAG = {noticed: "Noticed", idea: "Idea", brief: "For today"};
+function fyCard(c){
+  const yes = c.kind === "connect_app" ? ((c.action || {}).do === "open" ? "Show me how" : "Connect") :
+    c.kind === "email_reply" ? "Yes, draft it" : c.when ? `Yes, ${esc(c.when)}` : c.kind === "tidy_downloads" ? "Yes, tidy it" : "Yes, do it";
+  return `<div class="card ${c.status === "running" ? "auto" : ""}" data-c="${c.id}">
+    <span class="tag">${c.status === "running" ? (c.auto_ran ? "Doing it for you" : "Working on it") : SRC_TAG[c.source] || "Suggestion"}</span>
+    <h3>${esc(c.title)}</h3>${c.why ? `<p class="why">${esc(c.why)}</p>` : ""}
+    ${c.note ? `<div class="note2">${esc(c.note)}</div>` : ""}
+    ${c.status === "new" ? `<div class="row"><button class="btn primary" data-yes="${c.id}">${yes}</button>
+      <button class="btn" data-no="${c.id}">Not now</button><button class="quiet" data-never="${c.id}">Never suggest this</button></div>`
+      : `<div class="row"><button class="btn mini" data-see="${c.task_id || ""}">See progress</button></div>`}
+  </div>`;
+}
+let fyEditing = false;
+async function renderForYou(){
+  const box = $("#fyBox");
+  let d; try { d = await api("/api/foryou"); } catch(e) { box.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+  const st = d.settings, prof = d.profile || {};
+  const intro = prof.done && !fyEditing ? "" : `<div class="card" style="border:2px solid var(--hl)">
+      <h3>Tell me a little about you</h3><p class="why">So I can find things worth doing without you having to ask. A sentence is plenty. It stays on this computer.</p>
+      <div class="field"><input type="text" id="fyAbout" value="${esc(prof.about || "")}" placeholder="e.g. Nursing student, work weekends at a café, saving for a car"></div>
+      <p class="note" style="margin:0">What would you like a hand with?</p>
+      <div class="areas">${Object.entries(d.areas).map(([k, v]) => `<label><input type="checkbox" value="${k}" ${(prof.areas || []).includes(k) ? "checked" : ""}>${esc(v)}</label>`).join("")}</div>
+      <button class="btn primary" id="fySave">Save and find ideas</button></div>`;
+  const open = d.cards.filter(c => c.status === "new"), running = d.cards.filter(c => c.status === "running");
+  const autos = Object.entries(d.kinds).filter(([k, v]) => v.auto && !v.never);
+  const blocked = Object.entries(d.kinds).filter(([k, v]) => v.never);
+  box.innerHTML = intro + running.map(fyCard).join("") + (open.map(fyCard).join("") ||
+      `<p class="note">${st.level === "off" ? "Suggestions are off." : "Nothing right now. I check every few minutes and think up new ideas every few hours."}</p>`) + `
+    <p><button class="btn" id="fyLook">${d.thinking ? "Thinking…" : "Look for things now"}</button></p>
+    <h2>How much should I do on my own?</h2>
+    <div class="levels">
+      <label><input type="radio" name="fyl" value="auto" ${st.level === "auto" ? "checked" : ""}> <b>Suggest, and do the safe things myself</b><br><span class="note">Only things that just read and report, or that you've said yes to twice. Nothing gets deleted, and sending, buying or posting always waits for you.</span></label>
+      <label><input type="radio" name="fyl" value="suggest" ${st.level === "suggest" ? "checked" : ""}> <b>Only suggest</b><br><span class="note">Nothing starts until you tap yes.</span></label>
+      <label><input type="radio" name="fyl" value="off" ${st.level === "off" ? "checked" : ""}> <b>Off</b></label>
+    </div>
+    ${autos.length ? `<h2>Things I do automatically</h2>${autos.map(([k]) => `<label class="line"><input type="checkbox" checked data-auto="${esc(k)}"> ${esc(kindName(k))}</label>`).join("")}` : ""}
+    ${blocked.length ? `<h2>Things you told me not to suggest</h2>${blocked.map(([k]) => `<div class="line">${esc(kindName(k))} <button class="btn mini" data-unblock="${esc(k)}">Allow again</button></div>`).join("")}` : ""}
+    <label class="line"><input type="checkbox" id="fyWatch" ${st.watch_folders ? "checked" : ""}> <span>Watch Downloads, Desktop and Documents for new files<br><span class="note">Only names and dates are checked. A file is opened only when you say yes (or after you've said yes to summaries twice).</span></span></label>
+    <p class="note">Quiet from ${st.quiet_start}:00 to ${st.quiet_end}:00 · at most ${st.max_alerts_per_day} notifications a day · automatic work uses ${st.brain === "local" ? "the model on this computer" : esc(brainName(st.brain))}.</p>
+    ${prof.done ? `<p><button class="btn mini" id="fyEdit">Change what I know about you</button></p>` : ""}`;
+  const act = async (path, msg) => { try { const r = await api(path, {}); if (msg) toast(r.note || msg); } catch(e) { toast(e.message); } renderForYou(); refresh(); };
+  box.querySelectorAll("[data-yes]").forEach(b => b.onclick = async () => { b.disabled = true;
+    const card = d.cards.find(c => c.id === b.dataset.yes) || {};
+    if ((card.action || {}).do === "open") { await api(`/api/foryou/${card.id}/yes`, {}).catch(() => {}); show(card.action.page || "connect"); return; }
+    act(`/api/foryou/${b.dataset.yes}/yes`, card.kind === "connect_app" ? "Connected." : "On it. You'll get the result in Tasks and your Inbox."); });
+  box.querySelectorAll("[data-no]").forEach(b => b.onclick = () => act(`/api/foryou/${b.dataset.no}/no`));
+  box.querySelectorAll("[data-never]").forEach(b => b.onclick = () => act(`/api/foryou/${b.dataset.never}/never`, "Got it. I won't suggest that again."));
+  box.querySelectorAll("[data-see]").forEach(b => b.onclick = () => { if (b.dataset.see) tOpen.add(b.dataset.see); show("tasks"); });
+  box.querySelectorAll("[name=fyl]").forEach(r => r.onchange = async () => { await api("/api/foryou/settings", {level: r.value}); toast("Saved."); });
+  box.querySelectorAll("[data-auto]").forEach(cb => cb.onchange = async () => { await api("/api/foryou/settings", {auto: {[cb.dataset.auto]: cb.checked}}); toast(cb.checked ? "I'll do it automatically." : "I'll ask first from now on."); });
+  box.querySelectorAll("[data-unblock]").forEach(b => b.onclick = async () => { await api("/api/foryou/settings", {unblock: [b.dataset.unblock]}); renderForYou(); });
+  $("#fyWatch").onchange = async () => { await api("/api/foryou/settings", {watch_folders: $("#fyWatch").checked}); toast("Saved."); };
+  $("#fyLook").onclick = async () => { $("#fyLook").disabled = true; $("#fyLook").textContent = "Looking…";
+    try { const r = await api("/api/foryou/refresh", {}); toast(r.added ? `Found ${r.added} new thing${r.added > 1 ? "s" : ""}.` : "Nothing new right now."); } catch(e) { toast(e.message); } renderForYou(); refresh(); };
+  $("#fyEdit") && ($("#fyEdit").onclick = () => { fyEditing = true; renderForYou().then(() => window.scrollTo(0, 0)); });
+  $("#fySave") && ($("#fySave").onclick = async () => { $("#fySave").disabled = true; $("#fySave").textContent = "Thinking up ideas…";
+    fyEditing = false;
+    try { await api("/api/foryou/profile", {about: $("#fyAbout").value, areas: [...box.querySelectorAll(".areas input:checked")].map(x => x.value)});
+      toast("Thanks. Ideas will show up here in a minute."); setTimeout(renderForYou, 20000); } catch(e) { toast(e.message); }
+    renderForYou(); });
+}
+async function helloIdeas(){
+  // Show real suggestions on the empty chat screen, so there's always something to try.
+  try { const d = await api("/api/foryou"); const open = d.cards.filter(c => c.status === "new").slice(0, 3);
+    if (!open.length || !$("#hello")) return;
+    const box = $("#hello .ideas");
+    box.innerHTML = open.map(c => `<button data-fy="${c.id}">${esc(c.title)}<small>${esc(c.why || "Suggested for you")}</small></button>`).join("") +
+      `<button data-go="foryou"><small>See everything I can do for you →</small></button>`;
+    box.querySelectorAll("[data-fy]").forEach(b => b.onclick = async () => {
+      try { const r = await api(`/api/foryou/${b.dataset.fy}/yes`, {});
+        if (r.status === "running") { toast(r.note || "On it — follow along in Tasks."); show("tasks"); } else { toast(r.note || "Done."); b.remove(); } }
+      catch(e) { toast(e.message); } });
+    box.querySelector("[data-go]").onclick = () => show("foryou");
+  } catch(e) {}
+}
+
+/* ---------- brain picker (chat + tasks) ---------- */
+const BRAIN_NAMES = {chatgpt: "ChatGPT", gemini: "Gemini", claude: "Claude", "openai-api": "OpenAI", openrouter: "OpenRouter", local: "This computer"};
+const brainName = k => BRAIN_NAMES[k] || k;
+function fillBrainPickers(){
+  const live = (S?.brains_live || []).filter(b => b.key !== "local");
+  const opts = [["auto", "Auto — best fit"], ...live.map(b => [b.key, brainName(b.key) + (b.resting_until ? " (resting)" : "")]), ["local", "This computer only"]];
+  for (const id of ["#cBrain", "#tBrain"]) {
+    const el = $(id); if (!el) continue;
+    const keep = el.value || (() => { try { return localStorage.getItem("la_brain" + id) } catch(e) { return null } })() || "auto";
+    const sig = JSON.stringify(opts);
+    if (el._sig !== sig) { el.innerHTML = opts.map(([k, l]) => `<option value="${esc(k)}">${esc(l)}</option>`).join(""); el._sig = sig; }
+    el.value = opts.some(o => o[0] === keep) ? keep : "auto";
+    el.onchange = () => { try { localStorage.setItem("la_brain" + id, el.value) } catch(e) {} };
+  }
+}
+
+/* ---------- tasks ---------- */
+let tFilter = "active", tPoll = null, tOpen = new Set(), tDrafts = {};
+const ACTIVE = ["queued", "running", "waiting"];
+const STATUS_WORD = {queued: "Waiting its turn", running: "Working", waiting: "Needs your OK", done: "Done", failed: "Couldn't finish", stopped: "Stopped"};
+const ago = t => { const s = Math.max(0, Date.now() / 1000 - t); return s < 60 ? "just now" : s < 3600 ? Math.round(s / 60) + " min ago" : s < 86400 ? Math.round(s / 3600) + " h ago" : when(t); };
+const took = t => { if (!t.started) return ""; const s = Math.round((t.finished || Date.now() / 1000) - t.started); return s < 60 ? s + " s" : Math.round(s / 60) + " min"; };
+function routeText(t){
+  if (!t.route) return t.brain && t.brain !== "auto" ? brainName(t.brain) : "Choosing a brain…";
+  return String(t.route).replace(/^ollama:/, "");
+}
+function taskCard(t){
+  const steps = t.steps || [], last = steps[steps.length - 1];
+  const live = ACTIVE.includes(t.status);
+  return `<div class="task ${t.status} ${tOpen.has(t.id) ? "open" : ""}" data-t="${t.id}">
+    <div class="top"><h3 data-toggle="${t.id}">${esc(t.title)}</h3><span class="pill ${t.status}">${STATUS_WORD[t.status] || t.status}</span></div>
+    <div class="meta">${esc(routeText(t))} · ${ago(t.created)}${took(t) ? " · " + took(t) : ""}${t.source && t.source !== "app" ? " · from " + esc(t.source) : ""}</div>
+    ${t.status === "running" && last ? `<div class="now">${esc(last.text)}</div>` : ""}
+    ${t.approval ? `<div class="ask"><p>${esc(String(t.approval.question).replace(/^\[[^\]]*\]\s*/, ""))}</p><div class="row">
+        <button class="btn primary" data-allow="${esc(t.approval.id)}">Allow</button><button class="btn" data-deny="${esc(t.approval.id)}">Don't allow</button></div></div>` : ""}
+    <div class="body">
+      ${steps.length ? `<ol class="steps">${steps.map(x => `<li class="${x.ok === false ? "bad" : ""}">${x.ok === false ? "✕" : x.ok ? "✓" : "·"} ${esc(x.text)}</li>`).join("")}</ol>` : ""}
+      ${t.result ? `<div class="answer">${md(t.result)}</div>` : live ? "" : `<p class="note">No result.</p>`}
+      ${(t.replies || []).length ? `<p class="note">${t.replies.length} follow-up${t.replies.length > 1 ? "s" : ""}: ${t.replies.map(r => "“" + esc(short(r.text, 60)) + "”").join(", ")}</p>` : ""}
+    </div>
+    ${live ? `<div class="row"><button class="btn mini" data-stop="${t.id}">Stop</button></div>` :
+      `<div class="reply"><input type="text" data-rin="${t.id}" placeholder="Follow up or ask for changes…" value="${esc(tDrafts[t.id] || "")}"><button class="btn mini" data-reply="${t.id}">Send</button></div>`}
+  </div>`;
+}
+function brainStrip(brains){
+  if (!brains.length) return `<span class="note">Only this computer's model is connected. Connect ChatGPT or others on the Brains page.</span>`;
+  return brains.map(b => `<span class="bchip ${b.resting_until ? "rest" : ""}" title="${esc(b.good_at ? "Good at " + b.good_at : "")}"><i></i><b>${esc(brainName(b.key))}</b>${
+    b.resting_until ? " · resting until " + new Date(b.resting_until * 1000).toLocaleTimeString([], {hour: "numeric", minute: "2-digit"}) : b.good_at ? " · " + esc(b.good_at) : ""}</span>`).join("");
+}
+async function renderTasks(first){
+  clearTimeout(tPoll);
+  if (page !== "tasks") return;
+  let d; try { d = await api("/api/tasks"); } catch(e) { $("#taskList").innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+  const focused = document.activeElement?.dataset?.rin;
+  document.querySelectorAll("[data-rin]").forEach(x => tDrafts[x.dataset.rin] = x.value);
+  $("#brainStrip").innerHTML = brainStrip(d.brains || []);
+  const show = d.tasks.filter(t => tFilter === "all" || (tFilter === "active" ? ACTIVE.includes(t.status) : !ACTIVE.includes(t.status)));
+  $("#taskList").innerHTML = show.map(taskCard).join("") ||
+    `<p class="note">${tFilter === "active" ? "Nothing running. Start a task above — you can start several and they'll run side by side." : "Nothing here yet."}</p>`;
+  if (focused) { const el = document.querySelector(`[data-rin="${focused}"]`); el?.focus(); }
+  const box = $("#taskList");
+  box.querySelectorAll("[data-toggle]").forEach(h => h.onclick = () => { const id = h.dataset.toggle;
+    tOpen.has(id) ? tOpen.delete(id) : tOpen.add(id); h.closest(".task").classList.toggle("open"); });
+  box.querySelectorAll("[data-stop]").forEach(b => b.onclick = async () => { b.disabled = true; await api(`/api/tasks/${b.dataset.stop}/stop`, {}).catch(e => toast(e.message)); renderTasks(); });
+  box.querySelectorAll("[data-allow],[data-deny]").forEach(b => b.onclick = async () => {
+    b.closest(".row").querySelectorAll("button").forEach(x => x.disabled = true);
+    try { await api("/api/owner/answer", {id: b.dataset.allow || b.dataset.deny, allow: !!b.dataset.allow}); toast(b.dataset.allow ? "Allowed." : "Not allowed."); }
+    catch(e) { toast(e.message); } setTimeout(renderTasks, 400); });
+  const sendReply = async id => { const el = box.querySelector(`[data-rin="${id}"]`), msg = el.value.trim(); if (!msg) return;
+    try { await api(`/api/tasks/${id}/reply`, {message: msg}); delete tDrafts[id]; tOpen.add(id); tFilter = "active"; setFilter(); renderTasks(); } catch(e) { toast(e.message); } };
+  box.querySelectorAll("[data-reply]").forEach(b => b.onclick = () => sendReply(b.dataset.reply));
+  box.querySelectorAll("[data-rin]").forEach(el => el.onkeydown = e => { if (e.key === "Enter") sendReply(el.dataset.rin); });
+  const anyLive = d.tasks.some(t => ACTIVE.includes(t.status));
+  tPoll = setTimeout(renderTasks, document.hidden ? 15000 : anyLive ? 2000 : 8000);
+}
+function setFilter(){ document.querySelectorAll(".filters button").forEach(x => x.classList.toggle("on", x.dataset.f === tFilter)); }
+document.querySelectorAll(".filters button").forEach(b => b.onclick = () => { tFilter = b.dataset.f; setFilter(); renderTasks(); });
+async function startTask(){
+  const msg = $("#tInput").value.trim(); if (!msg) { $("#tInput").focus(); return; }
+  $("#tGo").disabled = true;
+  try { await api("/api/tasks", {message: msg, brain: $("#tBrain").value || "auto", source: phoneSized() ? "phone" : "app"});
+    $("#tInput").value = ""; tFilter = "active"; setFilter(); renderTasks(); refresh(); }
+  catch(e) { toast(e.message); }
+  $("#tGo").disabled = false;
+}
+$("#tGo").onclick = startTask;
+$("#tInput").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) startTask(); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && page === "tasks") renderTasks(); });
+
+/* ---------- brains (also used by the wizard) ---------- */
+let poll = null;
+function bridgeRow(b){
+  const st = b.signed_in ? ["ok", "Connected"] : b.installed ? ["no", "Installed — not signed in"] : ["no", "Not installed"];
+  const what = {chatgpt: "Uses your ChatGPT plan (Plus, Pro, Business…) through OpenAI's official Codex app.",
+                gemini: "Uses your Google account — free, or Google AI Pro/Ultra — through Google's official Antigravity CLI."}[b.key] || "";
+  let act = "";
+  if (!b.installed) act = b.install_command ? `<button class="btn primary" data-b="${b.key}" data-a="install">Install</button>`
+                                            : `<a class="btn" href="https://nodejs.org" target="_blank" rel="noopener">Get Node.js first</a>`;
+  else if (!b.signed_in) act = `<button class="btn primary" data-b="${b.key}" data-a="login">Sign in</button>`;
+  act += ` <button class="btn" data-b="${b.key}" data-a="check">Check again</button>`;
+  return `<div class="item"><h3>${esc(b.name)}</h3><div class="act"><span class="state ${st[0]}">${st[1]}</span>${act}</div>
+    <p>${what}${!b.signed_in && b.installed ? " " + esc(b.hint) : ""}</p>
+    ${b.signed_in ? `<p><label class="line" style="padding:0"><input type="checkbox" data-use="${b.key}" ${b.enabled ? "checked" : ""}> Let LocalAgent use ${esc(b.name)} when it needs help</label></p>` : ""}</div>`;
+}
+async function renderBrains(box, subsOnly = false){
+  await refresh();
+  const local = S.ollama.installed ? (S.ollama.running ? ["ok", "Running"] : ["warn", "Not running"]) : ["warn", "Not installed"];
+  const missing = Object.values(S.models).filter(m => !m.installed).length;
+  box.innerHTML = (subsOnly ? "" : `
+    <h2>On this computer</h2>
+    <div class="item"><h3>Local model</h3>
+      <div class="act"><span class="state ${local[0]}">${local[1]}</span>
+        ${!S.ollama.installed ? `<button class="btn primary" id="olInstall">Install Ollama</button>` : !S.ollama.running ? `<button class="btn primary" id="olStart">Start it</button>` :
+          missing ? `<button class="btn primary" id="olPull">Download models</button>` : ""}</div>
+      <p>Private and free. ${esc(S.models.main.model)} for thinking, ${esc(S.models.vision.model)} for seeing.${missing ? ` ${missing} still to download.` : ""}</p>
+      <div class="prog" id="pullProg" hidden><i></i></div><p id="pullMsg" class="note"></p></div>`) + `
+    <h2>Your subscriptions</h2>
+    ${S.bridges.map(bridgeRow).join("")}
+    <div class="item"><h3>Claude</h3><div class="act"><span class="state ${S.api.has_key && S.api.provider === "anthropic" ? "ok" : "no"}">${S.api.has_key && S.api.provider === "anthropic" ? "Connected with a key" : "Needs an API key"}</span></div>
+      <p>Anthropic doesn't allow other apps to sign in with a Claude subscription, so Claude connects with an API key from console.anthropic.com. Add one under Settings → Advanced.</p></div>`;
+  box.querySelectorAll("[data-b]").forEach(btn => btn.onclick = async () => {
+    btn.disabled = true;
+    try {
+      const r = await api(`/api/brains/${btn.dataset.b}/${btn.dataset.a}`, {});
+      if (btn.dataset.a === "install") toast("Installing in a new window. Come back here when it finishes.");
+      if (btn.dataset.a === "login") toast(r.hint || "Finish signing in, then come back.");
+      if (btn.dataset.a !== "check") startPoll(box);
+    } catch(e) { toast(e.message); }
+    renderBrains(box, subsOnly);
+  });
+  box.querySelectorAll("[data-use]").forEach(cb => cb.onchange = async () => {
+    const brains = S.bridges.map(b => ({provider: b.key, enabled: b.key === cb.dataset.use ? cb.checked : b.enabled}));
+    await api("/api/settings", {brains}); toast(cb.checked ? "Turned on." : "Turned off."); refresh();
+  });
+  $("#olInstall") && ($("#olInstall").onclick = async () => { toast((await api("/api/ollama/install", {})).message); startPoll(box); });
+  $("#olStart") && ($("#olStart").onclick = async () => { try { await api("/api/ollama/start", {}); toast("Starting…"); setTimeout(() => renderBrains(box), 3000); } catch(e) { toast(e.message); } });
+  $("#olPull") && ($("#olPull").onclick = () => downloadModels(S.profile, box));
+}
+function startPoll(box){
+  clearInterval(poll); let n = 0;
+  poll = setInterval(async () => { if (++n > 40) clearInterval(poll);
+    const before = JSON.stringify([S.bridges, S.ollama]); await refresh();
+    if (JSON.stringify([S.bridges, S.ollama]) !== before) { renderBrains(box, box.id === "wbrains"); } }, 4000);
+}
+async function downloadModels(profile, box, after){
+  const bar = box.querySelector("#pullProg"), msg = box.querySelector("#pullMsg");
+  bar.hidden = false; box.querySelectorAll("button").forEach(b => b.disabled = true);
+  const label = {main: "thinking model", vision: "seeing model", embed: "memory model"};
+  try {
+    await sse("/api/models/download", {profile}, ev => {
+      if (ev.error) { msg.textContent = ev.error; return; }
+      if (ev.done) { msg.textContent = "All set."; bar.querySelector("i").style.width = "100%"; return; }
+      if (ev.pct != null) bar.querySelector("i").style.width = ev.pct + "%";
+      msg.textContent = `Downloading the ${label[ev.role]} (${ev.model}): ${ev.status}${ev.pct != null ? " — " + ev.pct + "%" : ""}`;
+    });
+  } catch(e) { msg.textContent = e.message; }
+  after ? after() : renderBrains(box);
+}
+
+/* ---------- settings ---------- */
+function confirmState(){
+  const pats = (S.desktop.confirm_patterns || []).join(" ");
+  return {delete: /delete/.test(pats), money: /purchase/.test(pats), send: /send/.test(pats)};
+}
+function rulesFields(){
+  const c = confirmState();
+  return `
+    <div class="field"><span>Workspace folder</span><input type="text" id="ws" value="${esc(S.workspace)}">
+      <div class="note">Where LocalAgent saves what it makes. The trash lives inside it.</div></div>
+    <label class="line"><input type="checkbox" id="desk" ${S.desktop.enabled !== false ? "checked" : ""}>
+      <span><b>Let LocalAgent use apps on this computer</b><br><span class="note">It can see the screen, move the mouse and type — for things like “open Spotify and play jazz”.</span></span></label>
+    <div class="field"><span>Always ask me before it…</span>
+      <label class="line"><input type="checkbox" data-c="delete" ${c.delete ? "checked" : ""}> clicks anything that deletes or erases</label>
+      <label class="line"><input type="checkbox" data-c="money" ${c.money ? "checked" : ""}> buys, pays or subscribes</label>
+      <label class="line"><input type="checkbox" data-c="send" ${c.send ? "checked" : ""}> sends, posts or publishes</label></div>`;
+}
+function readRules(){
+  return {workspace: $("#ws").value.trim(), desktop_enabled: $("#desk").checked,
+          confirm: [...document.querySelectorAll("[data-c]")].filter(x => x.checked).map(x => x.dataset.c)};
+}
+async function renderSettings(){
+  await refresh();
+  const box = $("#settingsBox");
+  const prof = Object.entries(S.profiles).map(([k, v]) => `<option value="${k}" ${k === S.profile ? "selected" : ""}>${{"gpu-xl": "Very strong graphics card (16 GB+)", "gpu-large": "Strong graphics card (10–16 GB)", "gpu-small": "Graphics card (6–10 GB)", "laptop": "Everyday laptop (8 GB RAM)"}[k]} — ${v.main}</option>`).join("");
+  box.innerHTML = rulesFields() + `
+    <div class="field"><span>This computer</span><select id="prof">${prof}</select>
+      <div class="note">Picks a local model that fits. After changing it, download the new model on the Brains page.</div></div>
+    <label class="line"><input type="checkbox" id="auto" ${S.autostart ? "checked" : ""}>
+      <span><b>Start LocalAgent when I log in</b><br><span class="note">Keeps automations, the heartbeat and your phone working.</span></span></label>
+    <h2>Advanced</h2>
+    <div class="field"><span>API key (optional)</span>
+      <select id="apiProv"><option value="anthropic">Claude (Anthropic)</option><option value="openai">OpenAI</option><option value="openrouter">OpenRouter</option></select>
+      <input type="password" id="apiKey" placeholder="${S.api.has_key ? "A key is saved — paste a new one to replace it" : "Paste a key"}" style="margin-top:8px" autocomplete="off">
+      <input type="text" id="apiModel" placeholder="Model (leave blank for the default)" value="${esc(S.api.model)}" style="margin-top:8px">
+      <div class="note">Used after your subscriptions. Saved only in LocalAgent's settings file on this computer.</div></div>
+    <button class="btn primary" id="saveSettings">Save settings</button>`;
+  $("#apiProv").value = S.api.provider || "anthropic";
+  $("#auto").onchange = async () => { try { const r = await api("/api/autostart", {enabled: $("#auto").checked}); toast(r.enabled ? "LocalAgent will start when you log in." : "Won't start at login."); } catch(e) { toast(e.message); } };
+  $("#saveSettings").onclick = async () => {
+    const body = {...readRules(), profile: $("#prof").value};
+    if ($("#apiKey").value.trim() || $("#apiProv").value !== S.api.provider || $("#apiModel").value !== S.api.model)
+      body.api = {provider: $("#apiProv").value, key: $("#apiKey").value.trim(), model: $("#apiModel").value.trim()};
+    try { await api("/api/settings", body); toast("Saved."); renderSettings(); } catch(e) { toast(e.message); }
+  };
+}
+
+/* ---------- trash ---------- */
+async function renderTrash(){
+  const items = await api("/api/trash"), box = $("#trashBox");
+  if (!items.length) { box.innerHTML = `<p class="lede">Nothing here yet.</p>`; return; }
+  box.innerHTML = items.map(it => `<div class="item"><h3>${esc(base(it.original))}</h3>
+    <div class="act"><button class="btn" data-id="${esc(it.id)}">Put back</button></div>
+    <p>${esc(it.original)}<br>${it.action === "backup" ? "Earlier version, saved before it was changed" : "Removed"} ${new Date(it.time * 1000).toLocaleString()}${it.reason ? " — " + esc(it.reason) : ""}</p></div>`).join("");
+  box.querySelectorAll("[data-id]").forEach(b => b.onclick = async () => {
+    try { const r = await api("/api/restore", {id: b.dataset.id}); toast("Put back: " + base(r.restored)); renderTrash(); } catch(e) { toast(e.message); } });
+}
+
+/* ---------- voice ---------- */
+function speak(text){
+  if (!$("#aloud").checked || !window.speechSynthesis) return;
+  const plain = String(text).replace(/```[\s\S]*?```/g, " (code) ").replace(/[*#`>|_]/g, "").replace(/https?:\/\/\S+/g, "a link");
+  speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(plain.slice(0, 1200)); speechSynthesis.speak(u);
+}
+try { $("#aloud").checked = localStorage.getItem("la_aloud") === "1"; } catch(e) {}
+$("#aloud").onchange = () => { try { localStorage.setItem("la_aloud", $("#aloud").checked ? "1" : "0"); } catch(e) {} if (!$("#aloud").checked) speechSynthesis?.cancel(); };
+let rec = null, chunks = [];
+async function startRec(){
+  if (!S?.voice) { toast("Voice input needs one more install: pip install 'localagent[voice]'"); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+    chunks = []; rec = new MediaRecorder(stream);
+    rec.ondataavailable = e => chunks.push(e.data);
+    rec.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop()); $("#mic").classList.remove("rec"); $("#mic").textContent = "Listening…";
+      const blob = new Blob(chunks, {type: rec.mimeType || "audio/webm"});
+      const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+      try { const {text} = await api("/api/transcribe", {name: "voice.webm", data});
+        if (text) { input.value = (input.value ? input.value + " " : "") + text; input.dispatchEvent(new Event("input")); input.focus(); }
+        else toast("I didn't catch that. Try again a little closer to the mic.");
+      } catch(e) { toast(e.message); }
+      $("#mic").textContent = "Speak"; rec = null;
+    };
+    rec.start(); $("#mic").classList.add("rec"); $("#mic").textContent = "Stop";
+  } catch(e) { toast("Couldn't use the microphone: " + e.message); }
+}
+$("#mic").onclick = () => rec ? rec.stop() : startRec();
+
+/* ---------- inbox ---------- */
+const when = t => new Date(t * 1000).toLocaleString([], {weekday: "short", hour: "numeric", minute: "2-digit"});
+async function renderInbox(){
+  const d = await api("/api/inbox"), box = $("#inboxBox");
+  const asks = d.approvals.map(a => `<div class="ask"><p>${esc(a.question)}</p><div class="row">
+      <button class="btn primary" data-ok="${a.id}">Allow</button><button class="btn" data-no="${a.id}">Don't allow</button></div></div>`).join("");
+  const items = d.items.map(i => `<div class="item ${i.read ? "" : "unread"}"><h3>${esc(i.title)}</h3><div class="act"><span class="note">${when(i.time)}</span></div>
+      <div class="answer" style="grid-column:1/-1">${md(i.text)}</div></div>`).join("");
+  box.innerHTML = asks + (items || (asks ? "" : `<p class="lede">Nothing yet. Results from automations and the heartbeat will show up here.</p>`));
+  box.querySelectorAll("[data-ok],[data-no]").forEach(b => b.onclick = async () => {
+    try { await api("/api/owner/answer", {id: b.dataset.ok || b.dataset.no, allow: !!b.dataset.ok}); toast(b.dataset.ok ? "Allowed." : "Not allowed."); }
+    catch(e) { toast(e.message); } renderInbox(); });
+  if (d.items.some(i => !i.read)) { await api("/api/inbox/read", {}); refresh(); }
+}
+
+/* ---------- automations ---------- */
+async function renderAuto(){
+  const d = await api("/api/automations"), box = $("#autoBox"), hb = d.heartbeat;
+  const rows = d.items.map(a => `<div class="item"><h3>${esc(a.name)}</h3>
+      <div class="act"><span class="state ${a.enabled ? "ok" : "no"}">${a.enabled ? "On" : "Paused"}</span>
+        <button class="btn mini" data-run="${a.id}">${d.running === a.id ? "Running…" : "Run now"}</button>
+        <button class="btn mini" data-tog="${a.id}" data-on="${a.enabled ? 1 : 0}">${a.enabled ? "Pause" : "Turn on"}</button>
+        <button class="btn mini" data-arch="${a.id}">Remove</button></div>
+      <p>${esc(a.schedule)}${a.next_run && a.enabled ? " · next " + new Date(a.next_run).toLocaleString([], {weekday: "short", hour: "numeric", minute: "2-digit"}) : ""}${a.created_by === "agent" ? " · set up by LocalAgent" : ""}</p>
+      ${a.last_result ? `<details><summary class="note">Last result (${esc(a.last_run || "")})</summary><pre>${esc(a.last_result)}</pre></details>` : ""}</div>`).join("");
+  box.innerHTML = `
+    <h2>New automation</h2>
+    <div class="field"><span>What should it do?</span><input type="text" id="aTask" placeholder="Summarize my unread email and list anything urgent"></div>
+    <div class="row2"><div class="field"><span>When</span><input type="text" id="aWhen" placeholder="weekdays 8am"></div>
+      <div class="field"><span>Tell me</span><select id="aNotify"><option value="always">Every time</option><option value="important">Only if something matters</option></select></div></div>
+    <div class="note" style="margin:-6px 0 12px">Examples: every 2 hours · daily 18:00 · every monday 9:30 · in 20 minutes · once 2026-11-02 15:00</div>
+    <button class="btn primary" id="aAdd">Add automation</button>
+    <h2>Your automations</h2>${rows || `<p class="note">None yet.</p>`}
+    <h2>Heartbeat</h2>
+    <p class="note">Every so often LocalAgent goes through this checklist and only tells you when something needs attention.</p>
+    <label class="line"><input type="checkbox" id="hbOn" ${hb.enabled ? "checked" : ""}> <span>Check every <input type="text" id="hbMin" value="${hb.minutes}" style="width:4.5em;display:inline-block"> minutes, between
+      <input type="text" id="hbStart" value="${hb.start}" style="width:3.5em;display:inline-block">:00 and <input type="text" id="hbEnd" value="${hb.end}" style="width:3.5em;display:inline-block">:00</span></label>
+    <textarea class="big" id="hbList">${esc(hb.checklist)}</textarea>
+    <p><button class="btn primary" id="hbSave">Save heartbeat</button></p>
+    <p class="note">Automations run while LocalAgent is open. Turn on “Start when I log in” in Settings to keep them going.</p>`;
+  $("#aAdd").onclick = async () => {
+    try { const a = await api("/api/automations", {task: $("#aTask").value, when: $("#aWhen").value, notify: $("#aNotify").value});
+      toast(`Added — ${a.schedule}.`); renderAuto(); } catch(e) { toast(e.message); } };
+  box.querySelectorAll("[data-run]").forEach(b => b.onclick = async () => { await api(`/api/automations/${b.dataset.run}/run`, {}); toast("Running. The result will land in your Inbox."); setTimeout(renderAuto, 800); });
+  box.querySelectorAll("[data-tog]").forEach(b => b.onclick = async () => { await api(`/api/automations/${b.dataset.tog}`, {enabled: b.dataset.on !== "1"}); renderAuto(); });
+  box.querySelectorAll("[data-arch]").forEach(b => b.onclick = async () => { await api(`/api/automations/${b.dataset.arch}`, {archived: true, enabled: false}); toast("Removed."); renderAuto(); });
+  $("#hbSave").onclick = async () => {
+    await api("/api/heartbeat", {checklist: $("#hbList").value, enabled: $("#hbOn").checked, minutes: +$("#hbMin").value || 60,
+                                 start_hour: +$("#hbStart").value || 8, end_hour: +$("#hbEnd").value || 22});
+    toast($("#hbOn").checked ? "Heartbeat on." : "Saved."); };
+}
+
+/* ---------- skills ---------- */
+async function renderSkills(){
+  const list = await api("/api/skills"), box = $("#skillsBox");
+  const label = {builtin: "Built in", mine: "Yours", installed: "Installed", external: "From another app"};
+  box.innerHTML = list.map(k => `<div class="item"><h3>${esc(k.name)}</h3>
+      <div class="act"><span class="note">${label[k.source] || k.source}</span>
+        <label class="line" style="padding:0"><input type="checkbox" data-sk="${esc(k.name)}" ${k.enabled ? "checked" : ""}> On</label></div>
+      <p>${esc(k.description)}${k.origin ? `<br>from ${esc(k.origin)}` : ""}</p>
+      <details><summary class="note">See the steps</summary><pre>${esc(k.body)}</pre></details></div>`).join("") + `
+    <h2>Add a skill from a link</h2>
+    <div class="field"><input type="text" id="skSrc" placeholder="https://github.com/…/my-skill  or a link to SKILL.md or .zip"></div>
+    <button class="btn" id="skPrev">Check it first</button>
+    <div id="skReport"></div>
+    <p class="note">Only add skills from people you trust. LocalAgent scans each one, shows you what it found, and third-party skills can never approve risky actions on their own.</p>`;
+  box.querySelectorAll("[data-sk]").forEach(cb => cb.onchange = async () => { await api("/api/skills/toggle", {name: cb.dataset.sk, enabled: cb.checked}); toast(cb.checked ? "On." : "Off."); });
+  $("#skPrev").onclick = async () => {
+    const r = $("#skReport"); r.innerHTML = `<p class="note">Checking…</p>`;
+    try { const p = await api("/api/skills/preview", {source: $("#skSrc").value});
+      r.innerHTML = `<div class="ask"><p>${esc(p.name || "Unnamed skill")}: ${esc(p.description)}</p>
+        ${p.risks.length ? `<p class="risk">Safety scan found: ${p.risks.map(esc).join("; ")}. Don't install unless you know why it needs this.</p>` : `<p class="note">The safety scan found nothing alarming.</p>`}
+        ${p.files.length ? `<p class="note">Also includes: ${p.files.map(esc).join(", ")} (never run automatically)</p>` : ""}
+        <details><summary class="note">Read the instructions</summary><pre>${esc(p.body)}</pre></details>
+        <div class="row" style="margin-top:12px"><button class="btn primary" id="skInst">Install</button></div></div>`;
+      $("#skInst").onclick = async () => { try { toast((await api("/api/skills/install", {source: $("#skSrc").value})).message); renderSkills(); } catch(e) { toast(e.message); } };
+    } catch(e) { r.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+  };
+}
+
+/* ---------- apps & phone ---------- */
+const GROUP_ICON = {"Google": "G", "Online storage": "☁", "Email": "✉", "Calendar & scheduling": "▦", "Notes & reading": "✎",
+  "To-dos & projects": "☑", "Password managers": "⚿", "Websites (no API needed)": "◍", "Create & meet": "✦", "Jobs, home & money": "⌂", "Developer": "</>", "Everything else": "∞"};
+const HOW_LABEL = {signin: "Sign in", via: "Through Zapier", email: "App password", calendar: "Paste a link", notes: "On this computer",
+  storage: "Sign in or pick a drive", google: "One-time setup", token: "Access token", open: "No sign-in", feeds: "No account",
+  weather: "No account", none: "Not possible", web: "Use the website", passwords: "Sign-ins, AI never sees passwords",
+  extension: "Browser extension"};
+let connOpen = null;
+async function renderConnect(){
+  await refresh();
+  const box = $("#connectBox");
+  let d, mcp;
+  try { [d, mcp] = await Promise.all([api("/api/connections"), api("/api/connectors")]); } catch(e) { box.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+  const ph = S.phone, cat = Object.fromEntries(d.catalog.map(e => [e.id, e]));
+  const kindIcon = {email: "✉", calendar: "▦", notes: "✎", storage: "☁", feeds: "≡", weather: "☀", web: "◍", passwords: "⚿", google: "G"};
+  const mine = d.items.map(c => `<div class="item"><h3>${kindIcon[c.type] || "•"} ${esc(c.name)}</h3>
+      <div class="act"><span class="state ${c.error ? "warn" : c.locked || !c.signed_in ? "no" : c.enabled ? "ok" : "no"}">${c.error ? "Problem" : c.locked ? "Locked" : !c.signed_in ? "Not signed in yet" : c.enabled ? "Connected" : "Off"}</span>
+        ${c.type === "passwords" && c.app === "bitwarden" ? (c.locked ? `<input type="password" class="mini" data-bwpw="${c.id}" placeholder="Master password" style="width:11em"><button class="btn mini primary" data-bwun="${c.id}">Unlock</button>`
+          : `<button class="btn mini" data-bwlock="${c.id}">Lock</button>`) : ""}
+        ${c.type === "web" ? `<button class="btn mini" data-wshow="${c.id}">Open</button>${!c.signed_in ? `<button class="btn mini primary" data-wcheck="${c.id}">I'm signed in</button>` : ""}`
+          : `<button class="btn mini" data-ctest="${c.id}">Test</button>`}
+        <button class="btn mini" data-ctog="${c.id}" data-on="${c.enabled ? 1 : 0}">${c.enabled ? "Turn off" : "Turn on"}</button>
+        <button class="btn mini" data-crm="${c.id}">Disconnect</button></div>
+      <p>${esc(c.detail)}${c.error ? `<br><span class="risk">${esc(c.error)}</span>` : ""}</p></div>`).join("") +
+    d.hosted.map(h => `<div class="item"><h3>✦ ${esc((cat[h.catalog] || {}).name || h.title || h.name)}</h3>
+      <div class="act"><span class="state ${h.error ? "warn" : h.signed_in ? "ok" : "no"}">${h.error ? "Problem" : !h.signed_in ? "Signed out" : h.tools ? h.tools + " actions" : "Connected"}</span>
+        ${h.catalog === "google" ? `<button class="btn mini" id="gSign2">Sign in</button>` :
+          !h.signed_in || h.error ? `<button class="btn mini" data-signin="${esc(h.catalog || h.name)}">Sign in again</button>` : ""}
+        <button class="btn mini" data-hrm="${esc(h.name)}">Disconnect</button></div>
+      <p>${h.error ? `<span class="risk">${esc(h.error)}</span>` : esc((cat[h.catalog] || {}).blurb || "")}</p></div>`).join("");
+  const found = d.detected.map(f => `<div class="item"><h3>${f.type === "storage" ? "☁" : "✎"} ${esc(f.name)}</h3>
+      <div class="act"><button class="btn primary mini" data-det='${esc(JSON.stringify(f))}'>Connect</button></div><p>${esc(f.path)}</p></div>`).join("");
+  const connectedIds = new Set([...d.hosted.map(h => h.catalog), ...d.items.filter(i => i.catalog && i.signed_in).map(i => i.catalog)]);
+  const tile = e => `<button class="ctile ${connOpen === e.id ? "on" : ""} ${connectedIds.has(e.id) ? "done" : ""}" data-cat="${e.id}"><b>${esc(e.name)}</b>
+        <span>${connectedIds.has(e.id) ? "Connected" : e.how === "storage" ? (e.provider === "folder" ? "On this computer" :
+          ["mega", "protondrive"].includes(e.provider) ? "Email & password" : "Sign in") : HOW_LABEL[e.how] || ""}</span></button>`;
+  const groups = d.groups.map(g => {
+    const all = d.catalog.filter(e => e.group === g), items = all.filter(e => !e.alt), alts = all.filter(e => e.alt);
+    if (g === "Google") return `<h3 class="cgroup">G Google</h3>${googleCard(d)}
+      <div class="cgrid" style="margin-top:8px">${items.map(tile).join("")}</div>
+      ${items.some(e => e.id === connOpen) ? `<div class="cform" id="cform"></div>` : ""}
+      <details class="alt" ${alts.some(e => e.id === connOpen) ? "open" : ""}><summary class="note">Other ways to connect Google</summary>
+        <div class="cgrid">${alts.map(tile).join("")}</div>${alts.some(e => e.id === connOpen) ? `<div class="cform" id="cform"></div>` : ""}</details>`;
+    return `<h3 class="cgroup">${GROUP_ICON[g] || ""} ${esc(g)}</h3><div class="cgrid">${items.map(e =>
+      `<button class="ctile ${connOpen === e.id ? "on" : ""} ${connectedIds.has(e.id) ? "done" : ""}" data-cat="${e.id}"><b>${esc(e.name)}</b>
+        <span>${connectedIds.has(e.id) ? "Connected" : e.how === "storage" ? (e.provider === "folder" ? "On this computer" :
+          ["mega", "protondrive"].includes(e.provider) ? "Email & password" : "Sign in") : HOW_LABEL[e.how] || ""}</span></button>`).join("")}</div>
+      ${items.some(e => e.id === connOpen) ? `<div class="cform" id="cform"></div>` : ""}`;
+  }).join("");
+  const phone = !ph.connected ? `
+      <p class="note">1. Open Telegram, message <b>@BotFather</b>, send <b>/newbot</b> and follow the steps. 2. Paste the token it gives you here.</p>
+      <div class="field"><input type="password" id="tgTok" placeholder="Bot token, like 123456:ABC-DEF…" autocomplete="off"></div>
+      <button class="btn" id="tgGo">Connect Telegram</button>`
+    : !ph.paired ? `<p>Now open your bot <b>@${esc(ph.bot)}</b> in Telegram and send:</p><p class="code">/pair ${esc(ph.code || "")}</p>
+      <p class="note">Only the account that sends this will be able to control LocalAgent.</p>
+      <button class="btn" id="tgCheck">I sent it</button> <button class="btn" id="tgOff">Disconnect</button>`
+    : `<div class="item"><h3>Telegram${ph.bot ? " · @" + esc(ph.bot) : ""}</h3><div class="act"><span class="state ok">Paired</span>
+        <button class="btn mini" id="tgTest">Send a test</button><button class="btn mini" id="tgOff">Disconnect</button></div>
+      <p>Message your bot to give LocalAgent tasks from anywhere. ${esc(ph.status)}</p></div>`;
+  const custom = mcp.items.filter(c => !d.hosted.some(h => h.name === c.name));
+  const conns = custom.map(c => `<div class="item"><h3>${esc(c.name)}</h3>
+      <div class="act"><span class="state ${c.error ? "warn" : c.running ? "ok" : "no"}">${c.error ? "Problem" : c.running ? c.tools + " actions" : c.enabled ? "Ready" : "Off"}</span>
+        <button class="btn mini" data-test="${esc(c.name)}">Test</button>
+        <label class="line" style="padding:0"><input type="checkbox" data-con="${esc(c.name)}" ${c.enabled ? "checked" : ""}> On</label></div>
+      <p>${esc(c.target)}${c.error ? `<br><span class="risk">${esc(c.error)}</span>` : ""}</p></div>`).join("");
+  const imp = Object.entries(mcp.importable);
+  box.innerHTML = `
+    ${found ? `<h2>Found on this computer</h2>${found}` : ""}
+    <h2>Connected</h2>${mine || `<p class="note">Nothing yet. The more you connect, the more LocalAgent can do for you without being asked — like drafting replies to important email or prepping you before meetings.</p>`}
+    <h2>Add more</h2>${groups}
+    <h3 class="cgroup">⌕ Something else?</h3>
+    <div class="row2"><div class="field"><input type="text" id="regQ" placeholder="Search thousands of connectors, e.g. Spotify, Strava, Obsidian, Shopify"></div>
+      <div class="field"><button class="btn" id="regGo">Search</button></div></div>
+    <div id="regOut"></div>
+    <h2>Phone</h2><div id="tsBox"><p class="note">Checking Tailscale…</p></div>
+    <h3 class="cgroup">Telegram</h3>${phone}
+    <details class="adv"><summary><b>Advanced: custom connectors</b></summary>
+      <p class="note">Any MCP server — thousands exist. Output from connectors is treated as outside content.</p>
+      ${conns || `<p class="note">None.</p>`}
+      ${imp.length ? `<p class="note">Already set up in Claude Desktop, Cursor or Windsurf:</p>
+        ${imp.map(([n, v]) => `<label class="line"><input type="checkbox" data-imp="${esc(n)}"> <span><b>${esc(n)}</b><br><span class="note">${esc((v.command || [v.url]).join(" "))}</span></span></label>`).join("")}
+        <button class="btn" id="impGo">Bring them over</button>` : ""}
+      <div class="row2"><div class="field"><span>Command or web address</span><input type="text" id="cCmd" placeholder="npx -y @modelcontextprotocol/server-filesystem ~/Documents"></div>
+        <div class="field"><span>Name</span><input type="text" id="cName" placeholder="documents"></div></div>
+      <label class="line"><input type="checkbox" id="cRo"> It only reads things (never needs approval)</label>
+      <button class="btn" id="cAdd">Add connector</button></details>`;
+
+  // ---- connected items
+  const act = async (fn, ok) => { try { const r = await fn(); if (ok) toast(typeof ok === "function" ? ok(r) : ok); } catch(e) { toast(e.message); } renderConnect(); };
+  box.querySelectorAll("[data-ctest]").forEach(b => b.onclick = () => { b.disabled = true; b.textContent = "Testing…"; act(() => api(`/api/connections/${b.dataset.ctest}/test`, {}), r => r.message); });
+  box.querySelectorAll("[data-ctog]").forEach(b => b.onclick = () => act(() => api(`/api/connections/${b.dataset.ctog}/${b.dataset.on === "1" ? "off" : "on"}`, {})));
+  box.querySelectorAll("[data-crm]").forEach(b => b.onclick = () => act(() => api(`/api/connections/${b.dataset.crm}/remove`, {}), "Disconnected. Its saved password or link was removed from this computer."));
+  box.querySelectorAll("[data-bwun]").forEach(b => b.onclick = () => { const pw = box.querySelector(`[data-bwpw="${b.dataset.bwun}"]`);
+    const v = pw.value; pw.value = ""; act(() => api(`/api/passwords/${b.dataset.bwun}/unlock`, {master_password: v}), r => r.message); });
+  box.querySelectorAll("[data-bwlock]").forEach(b => b.onclick = () => act(() => api(`/api/passwords/${b.dataset.bwlock}/lock`, {}), "Locked."));
+  box.querySelectorAll("[data-wshow]").forEach(b => b.onclick = () => act(() => api(`/api/web/${b.dataset.wshow}/show`, {}), "Opened in LocalAgent's browser."));
+  box.querySelectorAll("[data-wcheck]").forEach(b => b.onclick = () => { b.disabled = true; b.textContent = "Checking…"; act(() => api(`/api/web/${b.dataset.wcheck}/check`, {}), r => r.message); });
+  box.querySelectorAll("[data-hrm]").forEach(b => b.onclick = () => act(() => api(`/api/hosted/${b.dataset.hrm}/remove`, {}), "Disconnected."));
+  box.querySelectorAll("[data-det]").forEach(b => b.onclick = () => { const f = JSON.parse(b.dataset.det); b.disabled = true; b.textContent = "Connecting…";
+    act(() => api("/api/connections/add", f.type === "storage" ? {type: "storage", provider: "folder", path: f.path, service: f.service, name: f.name}
+                                                           : {type: "notes", app: f.app, path: f.path, name: f.name}), r => r.message); });
+  $("#gSign2") && ($("#gSign2").onclick = googleSignIn);
+  $("#regGo").onclick = () => registrySearch($("#regQ").value);
+  $("#regQ").onkeydown = e => { if (e.key === "Enter") registrySearch($("#regQ").value); };
+  box.querySelectorAll("[data-signin]").forEach(b => b.onclick = () => signIn(cat[b.dataset.signin]));
+  box.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { connOpen = connOpen === b.dataset.cat ? null : b.dataset.cat; renderConnect(); });
+  if (connOpen && $("#cform")) connForm($("#cform"), cat[connOpen], d);
+  wireGoogle(d);
+
+  // ---- phone + advanced (unchanged behaviour)
+  renderPhoneApp();
+  box.querySelectorAll("[data-con]").forEach(cb => cb.onchange = async () => { await api("/api/connectors", {name: cb.dataset.con, enabled: cb.checked}); renderConnect(); });
+  box.querySelectorAll("[data-test]").forEach(b => b.onclick = async () => { b.disabled = true; b.textContent = "Testing…";
+    try { const r = await api(`/api/connectors/${b.dataset.test}/test`, {}); toast(`Works — ${r.tools.length} actions available.`); } catch(e) { toast(e.message); } renderConnect(); });
+  $("#impGo") && ($("#impGo").onclick = async () => { await api("/api/connectors/import", {names: [...box.querySelectorAll("[data-imp]:checked")].map(x => x.dataset.imp)}); renderConnect(); });
+  $("#cAdd").onclick = async () => { const v = $("#cCmd").value.trim();
+    try { await api("/api/connectors", {name: $("#cName").value, ...(/^https?:/.test(v) ? {url: v} : {command: v}), readonly: $("#cRo").checked, enabled: true});
+      toast("Added. Press Test to check it."); renderConnect(); } catch(e) { toast(e.message); } };
+  $("#tgGo") && ($("#tgGo").onclick = async () => { try { await api("/api/phone/connect", {token: $("#tgTok").value}); renderConnect(); } catch(e) { toast(e.message); } });
+  $("#tgCheck") && ($("#tgCheck").onclick = () => renderConnect());
+  $("#tgOff") && ($("#tgOff").onclick = async () => { await api("/api/phone/disconnect", {}); renderConnect(); });
+  $("#tgTest") && ($("#tgTest").onclick = async () => { try { await api("/api/phone/test", {}); toast("Sent — check your phone."); } catch(e) { toast(e.message); } });
+}
+
+function googleCard(d){
+  const g = d.google, acct = g.accounts[0];
+  const boxes = Object.entries(g.services).map(([k, v]) => `<label class="line gsvc"><input type="checkbox" data-gs="${k}" checked>
+      <span><b>${esc(v.name)}</b> <span class="note">— ${esc(v.why)}</span></span></label>`).join("");
+  if (!g.ready) return `<div class="card gcard"><h3>Sign in with Google</h3>
+      <p class="why">Gmail, Calendar, Drive, Tasks and Contacts — one sign-in on Google's own page, no passwords given to LocalAgent.</p>
+      <p class="note">This copy of LocalAgent hasn't been registered with Google yet. Whoever publishes LocalAgent does that once for everyone; until then, use Gmail, Calendar and Drive in LocalAgent's browser (under “Other ways to connect Google” below) — no setup.</p>
+      <details><summary class="note">I publish or run this copy of LocalAgent</summary>
+        <p class="note">Paste the OAuth client (type “Desktop app”) from LocalAgent's Google Cloud project. Users never see this.</p>
+        <div class="row2"><div class="field"><span>Client ID</span><input type="text" id="gcId" autocomplete="off"></div>
+          <div class="field"><span>Client secret</span><input type="password" id="gcSec" autocomplete="off"></div></div>
+        <button class="btn" id="gcSave">Save</button></details></div>`;
+  return `<div class="card gcard">${acct ? `<h3>Signed in as ${esc(acct.email)}</h3><p class="why">Using: ${acct.services.map(s => esc(g.services[s].name)).join(", ") || "nothing"}. Tick more below to add them.</p>`
+      : `<h3>Sign in with Google</h3><p class="why">One sign-in on Google's own page. LocalAgent never sees your password, and you can remove its access any time in your Google account.</p>`}
+    ${boxes}
+    <div class="row"><button class="btn primary gbtn" id="gGoNew">${acct ? "Update Google access" : "Sign in with Google"}</button>
+      <span class="note" id="gWait" hidden>Finish on the Google page in your browser…</span></div>
+    <p class="note" style="margin-top:10px">While LocalAgent is new, Google shows “Google hasn't verified this app” — press <b>Continue</b>. Sending email, inviting people and anything that deletes always asks you first.</p></div>`;
+}
+function wireGoogle(d){
+  $("#gcSave") && ($("#gcSave").onclick = async () => { try { toast((await api("/api/google/client", {client_id: $("#gcId").value, client_secret: $("#gcSec").value})).message); renderConnect(); } catch(e) { toast(e.message); } });
+  const b = $("#gGoNew"); if (!b) return;
+  b.onclick = async () => {
+    const services = [...document.querySelectorAll("[data-gs]:checked")].map(x => x.dataset.gs);
+    if (!services.length) { toast("Tick at least one Google service."); return; }
+    const acct = d.google.accounts[0];
+    try { await api("/api/google/connect", {services, id: acct ? acct.id : "", email: acct ? acct.email : ""}); }
+    catch(e) { toast(e.message); return; }
+    b.disabled = true; $("#gWait").hidden = false;
+    const before = JSON.stringify(d.google.accounts); let n = 0;
+    const t = setInterval(async () => { if (++n > 100) { clearInterval(t); b.disabled = false; $("#gWait").hidden = true; return; }
+      try { const x = await api("/api/connections"); if (JSON.stringify(x.google.accounts) !== before) { clearInterval(t); toast("Google is connected."); renderConnect(); } } catch(_) {} }, 3000);
+  };
+}
+
+async function googleSignIn(){
+  try { const r = await api("/api/google/signin", {}); toast(r.message); }
+  catch(err) { toast(err.message); }
+}
+
+async function registrySearch(q){
+  const out = $("#regOut"); if (!q || q.trim().length < 2) return;
+  out.innerHTML = `<p class="note">Searching the MCP Registry…</p>`;
+  let r; try { r = await api("/api/registry?q=" + encodeURIComponent(q.trim())); } catch(e) { out.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+  if (!r.results.length) { out.innerHTML = `<p class="note">Nothing found for “${esc(q)}”. Zapier, Make or Pipedream may still reach it.</p>`; return; }
+  out.innerHTML = r.results.map((x, i) => {
+    const rem = x.remotes[0], pkg = x.packages[0];
+    return `<div class="item"><h3>${esc(x.title)}</h3><div class="act"><button class="btn mini" data-reg="${i}">Add</button></div>
+      <p>${esc(x.description)}<br><span class="note">${rem ? "Hosted — sign in on the web" : `Runs on this computer (${esc(pkg.type)} package <code>${esc(pkg.id)}</code>) — only add ones you trust`}${x.repository ? ` · <a href="${esc(x.repository)}" target="_blank" rel="noopener">source</a>` : ""}</span></p>
+      <div class="regform" data-rf="${i}" hidden></div></div>`; }).join("");
+  out.querySelectorAll("[data-reg]").forEach(b => b.onclick = async () => {
+    const x = r.results[+b.dataset.reg], rem = x.remotes[0], pkg = x.packages[0];
+    const form = out.querySelector(`[data-rf="${b.dataset.reg}"]`);
+    const add = async body => { try { const res = await api("/api/registry/add", body);
+        if (res.needs_signin) { toast(res.message); await signIn({id: res.name, name: x.title}); } else toast(res.message);
+        renderConnect(); } catch(e) { toast(e.message); } };
+    if (rem) return add({name: x.name, title: x.title, url: rem.url, type: rem.type, registry: x.name});
+    if (!pkg.env.length) return add({name: x.name, title: x.title, command: pkg.command, registry: x.name});
+    form.hidden = false;
+    form.innerHTML = pkg.env.map((v, j) => `<div class="field"><span>${esc(v.name)}${v.required ? " *" : ""}</span>
+      <input type="${v.secret ? "password" : "text"}" data-ev="${j}" autocomplete="off"><div class="note">${esc(v.description)}</div></div>`).join("") +
+      `<button class="btn primary mini">Add ${esc(x.title)}</button>`;
+    form.querySelector("button").onclick = () => add({name: x.name, title: x.title, command: pkg.command, registry: x.name,
+      env: pkg.env.map((v, j) => ({...v, value: form.querySelector(`[data-ev="${j}"]`).value}))});
+  });
+}
+
+async function signIn(e){
+  if (!e) return;
+  try { await api(`/api/signin/${e.id}`, {}); }
+  catch(err) { toast(err.message); return; }
+  toast(`Finish signing in to ${e.name} in your browser, then come back here.`);
+  let n = 0; const t = setInterval(async () => {
+    if (++n > 60) return clearInterval(t);
+    try { const d = await api("/api/connections"); if (d.hosted.some(h => (h.catalog === e.id || h.name === e.id) && h.signed_in)) {
+      clearInterval(t); connOpen = null; toast(`${e.name} is connected.`); if (page === "connect") renderConnect(); } } catch(_) {}
+  }, 3000);
+}
+
+function connForm(el, e, d){
+  const go = async (body, btn) => { btn.disabled = true; btn.textContent = "Checking…";
+    try { const r = await api("/api/connections/add", body); toast(r.message); connOpen = null; renderConnect(); }
+    catch(err) { toast(err.message); btn.disabled = false; btn.textContent = "Connect"; } };
+  if (e.how === "email") {
+    const pr = d.presets[e.preset] || d.presets.other;
+    el.innerHTML = `<p>${esc(e.blurb || "Read, search and draft replies. Sending always asks you first.")}</p>
+      <div class="field"><span>Email address</span><input type="text" id="mAddr" autocomplete="off" placeholder="you@${e.preset === "other" ? "example.com" : e.preset + ".com"}"></div>
+      <div class="field"><span>App password</span><input type="password" id="mPw" autocomplete="off">
+        <div class="note">${esc(pr.steps)}${pr.help ? ` <a href="${esc(pr.help)}" target="_blank" rel="noopener">Make one here</a>.` : ""} It's stored in your computer's password vault, not in LocalAgent's files.</div></div>
+      ${e.preset === "other" ? `<div class="row2"><div class="field"><span>IMAP server</span><input type="text" id="mImap" placeholder="imap.example.com"></div>
+        <div class="field"><span>SMTP server</span><input type="text" id="mSmtp" placeholder="smtp.example.com"></div></div>` : ""}
+      <button class="btn primary" id="mGo">Connect</button>`;
+    $("#mGo").onclick = () => go({type: "email", preset: e.preset, address: $("#mAddr").value.trim(), password: $("#mPw").value,
+      imap: $("#mImap")?.value.trim(), smtp: $("#mSmtp")?.value.trim()}, $("#mGo"));
+  } else if (e.how === "calendar") {
+    el.innerHTML = `<p>${esc(e.blurb || "See your schedule and prep for meetings. Read-only: new events are prepared for you to save.")}</p>
+      <p class="note"><b>Where to find the link:</b> ${esc(d.calendar_help[e.provider] || "")}</p>
+      <div class="field"><span>Calendar link</span><input type="password" id="kUrl" autocomplete="off" placeholder="https://… .ics"></div>
+      <div class="note" style="margin:-6px 0 12px">Treat it like a password: anyone with it can see your calendar. It's stored in your computer's password vault.</div>
+      <button class="btn primary" id="kGo">Connect</button>`;
+    $("#kGo").onclick = () => go({type: "calendar", provider: e.provider, url: $("#kUrl").value.trim(), name: e.name}, $("#kGo"));
+  } else if (e.how === "notes") {
+    const hit = d.detected.find(f => f.app === e.app);
+    const where = {obsidian: "your vault folder", logseq: "your graph folder", joplin: "Joplin's profile folder (usually .config\\joplin-desktop in your user folder)", folder: "the folder with your notes"}[e.app];
+    el.innerHTML = `<p>${esc(e.blurb || "Search, read and add to your notes. LocalAgent never overwrites a note.")}</p>
+      <div class="field"><span>Where is ${esc(where)}?</span><input type="text" id="nPath" value="${esc(hit ? hit.path : "")}" placeholder="C:\\Users\\you\\Documents\\Notes"></div>
+      ${hit ? `<div class="note" style="margin:-6px 0 12px">Found on this computer.</div>` : ""}
+      <button class="btn primary" id="nGo">Connect</button>`;
+    $("#nGo").onclick = () => go({type: "notes", app: e.app, path: $("#nPath").value.trim()}, $("#nGo"));
+  } else if (e.how === "signin") {
+    const phoneHere = !["127.0.0.1", "localhost"].includes(location.hostname);
+    el.innerHTML = `<p>${esc(e.blurb || "")}</p>
+      <p class="note">You sign in on ${esc(e.name)}'s own page and choose what to allow. LocalAgent never sees your password, and you can remove its access from ${esc(e.name)}'s settings any time.</p>
+      ${phoneHere ? `<p class="risk">Do this on the computer running LocalAgent — the sign-in sends you back to it.</p>` : `<button class="btn primary" id="sGo">Sign in to ${esc(e.name)}</button>`}`;
+    $("#sGo") && ($("#sGo").onclick = () => signIn(e));
+  } else if (e.how === "storage" && e.provider === "folder") {
+    const hits = d.detected.filter(f => f.type === "storage");
+    el.innerHTML = `<p>${esc(e.blurb || "")}</p>
+      ${hits.length ? `<p class="note">Found: ${hits.map(f => `<a href="#" data-pick="${esc(f.path)}">${esc(f.name)}</a>`).join(" · ")}</p>` : ""}
+      <div class="field"><span>Folder or drive</span><input type="text" id="fPath" placeholder="I:\\  or  C:\\Users\\you\\iCloudDrive"></div>
+      <button class="btn primary" id="fGo">Connect</button>`;
+    el.querySelectorAll("[data-pick]").forEach(a => a.onclick = ev => { ev.preventDefault(); $("#fPath").value = a.dataset.pick; });
+    $("#fGo").onclick = () => go({type: "storage", provider: "folder", path: $("#fPath").value.trim()}, $("#fGo"));
+  } else if (e.how === "storage") {
+    const pw = ["mega", "protondrive"].includes(e.provider);
+    el.innerHTML = `<p>${esc(e.blurb || "Browse, search, find big files, move things and free up space. Nothing is ever deleted — “removing” moves things into an agent_trash folder in your " + e.name + ".")}</p>
+      ${d.rclone ? "" : `<p class="note">The first time, LocalAgent installs <b>rclone</b> (rclone.org), the free open-source tool it uses to talk to cloud storage.</p>`}
+      ${pw ? `<div class="field"><span>${esc(e.name)} email</span><input type="text" id="sUser" autocomplete="off"></div>
+        <div class="field"><span>Password</span><input type="password" id="sPw" autocomplete="off"></div>
+        ${e.provider === "protondrive" ? `<div class="field"><span>2-factor code (if you use one)</span><input type="text" id="sCode" autocomplete="off"></div>` : ""}
+        <div class="note" style="margin:-6px 0 12px">Handed to rclone once and stored scrambled in LocalAgent's private settings on this computer.</div>`
+      : `<p class="note">Your browser opens ${esc(e.name)}'s sign-in page. Approve access and come back — this window waits for you.</p>`}
+      <button class="btn primary" id="sGo2">${pw ? "Connect" : "Sign in to " + esc(e.name)}</button>`;
+    $("#sGo2").onclick = async () => { const b = $("#sGo2"); b.disabled = true; b.textContent = pw ? "Connecting…" : "Waiting for you to finish in your browser…";
+      try { const r = await api("/api/connections/add", {type: "storage", provider: e.provider, user: $("#sUser")?.value, password: $("#sPw")?.value, code: $("#sCode")?.value});
+        toast(r.message); connOpen = null; renderConnect(); } catch(err) { toast(err.message); b.disabled = false; b.textContent = "Try again"; } };
+  } else if (e.how === "google") {
+    const have = d.hosted.some(h => h.catalog === "google");
+    const apis = "gmail.googleapis.com,drive.googleapis.com,calendar-json.googleapis.com,docs.googleapis.com,sheets.googleapis.com,slides.googleapis.com,forms.googleapis.com,tasks.googleapis.com,people.googleapis.com";
+    el.innerHTML = `<p>${esc(e.blurb)}</p>
+      ${have ? `<p><b>Set up.</b> <button class="btn primary" id="gSign">Sign in with Google</button></p>` : ""}
+      ${!d.tools_present.uvx ? `<p class="risk">This needs “uv”, a small free tool that runs the Google connector. Install it from <a href="https://docs.astral.sh/uv/getting-started/installation/" target="_blank" rel="noopener">docs.astral.sh/uv</a>, then come back.</p>` : ""}
+      <details ${have ? "" : "open"}><summary><b>One-time setup (about 10 minutes, free)</b></summary>
+      <p class="note">Google only lets apps it has reviewed read Gmail and Drive. The way around that for your own use is to make your own private “app” in Google Cloud — only you can use it.</p>
+      <ol class="steps">
+        <li>Open <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud</a> and create a project called <b>LocalAgent</b>.</li>
+        <li><a href="https://console.cloud.google.com/flows/enableapi?apiid=${apis}" target="_blank" rel="noopener">Turn on the Google APIs</a> (one click: Next → Enable).</li>
+        <li>Open <a href="https://console.cloud.google.com/auth/overview" target="_blank" rel="noopener">Google Auth Platform</a> → Get started. App name: LocalAgent, your email, audience <b>External</b>.</li>
+        <li>In <b>Audience</b>, press <b>Publish app</b>. (Otherwise Google signs you out every 7 days.)</li>
+        <li>In <a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener">Clients</a> → Create client → type <b>Desktop app</b> → Create. Copy the Client ID and Client secret below.</li>
+      </ol>
+      <div class="field"><span>Your Google email</span><input type="text" id="gMail" placeholder="you@gmail.com"></div>
+      <div class="field"><span>Client ID</span><input type="text" id="gId" autocomplete="off" placeholder="1234-abc.apps.googleusercontent.com"></div>
+      <div class="field"><span>Client secret</span><input type="password" id="gSec" autocomplete="off"></div>
+      <label class="line"><input type="checkbox" id="gRo"> <span>Read only <span class="note">— LocalAgent can look but not change anything in your Google account</span></span></label>
+      <p class="note">When you sign in, Google will say it hasn't verified the app. That's expected: it's your own app. Press Advanced → Go to LocalAgent.</p>
+      <button class="btn primary" id="gGo">Save and continue</button></details>`;
+    $("#gSign") && ($("#gSign").onclick = googleSignIn);
+    $("#gGo").onclick = async () => { const b = $("#gGo"); b.disabled = true; b.textContent = "Starting the Google connector (the first time takes a minute)…";
+      try { const r = await api("/api/google/setup", {client_id: $("#gId").value, client_secret: $("#gSec").value, email: $("#gMail").value, read_only: $("#gRo").checked});
+        toast(r.message); await googleSignIn(); renderConnect(); } catch(err) { toast(err.message); b.disabled = false; b.textContent = "Save and continue"; } };
+  } else if (e.how === "token") {
+    el.innerHTML = `<p>${esc(e.blurb || "")}</p><p class="note"><b>How to get a token:</b> ${esc(e.token_help || "")}</p>
+      ${(e.fields || []).map(f => `<div class="field"><span>${esc(f.label)}</span><input type="text" data-tf="${esc(f.key)}" placeholder="${esc(f.placeholder || "")}"></div>`).join("")}
+      <div class="field"><span>Access token</span><input type="password" id="tTok" autocomplete="off"></div>
+      <div class="note" style="margin:-6px 0 12px">Stored in your computer's password vault.</div>
+      <button class="btn primary" id="tGo2">Connect</button>`;
+    $("#tGo2").onclick = async () => { const b = $("#tGo2"); b.disabled = true; b.textContent = "Checking…";
+      const body = {token: $("#tTok").value}; el.querySelectorAll("[data-tf]").forEach(i => body[i.dataset.tf] = i.value);
+      try { toast((await api(`/api/connect/${e.id}`, body)).message); connOpen = null; renderConnect(); } catch(err) { toast(err.message); b.disabled = false; b.textContent = "Connect"; } };
+  } else if (e.how === "open") {
+    el.innerHTML = `<p>${esc(e.blurb || "")}</p><button class="btn primary" id="oGo">Connect</button>`;
+    $("#oGo").onclick = async () => { const b = $("#oGo"); b.disabled = true; b.textContent = "Connecting…";
+      try { toast((await api(`/api/connect/${e.id}`, {})).message); connOpen = null; renderConnect(); } catch(err) { toast(err.message); b.disabled = false; b.textContent = "Connect"; } };
+  } else if (e.how === "feeds") {
+    const starter = {"World news (BBC)": "https://feeds.bbci.co.uk/news/world/rss.xml", "Tech (The Verge)": "https://www.theverge.com/rss/index.xml",
+                     "Science (NASA)": "https://www.nasa.gov/feed/", "Hacker News": "https://hnrss.org/frontpage"};
+    el.innerHTML = `<p>${esc(e.blurb)}</p>
+      ${Object.entries(starter).map(([n, u]) => `<label class="line"><input type="checkbox" data-feed="${esc(n)}" data-url="${esc(u)}" checked> ${esc(n)}</label>`).join("")}
+      <div class="field"><span>More feed addresses (one per line)</span><textarea class="big" id="fUrls" style="min-height:70px" placeholder="https://example.com/feed.xml"></textarea>
+        <div class="note">Most news sites and blogs have one. For a YouTube channel use https://www.youtube.com/feeds/videos.xml?channel_id=… </div></div>
+      <button class="btn primary" id="feGo">Connect</button>`;
+    $("#feGo").onclick = () => { const feeds = {}; el.querySelectorAll("[data-feed]:checked").forEach(c => feeds[c.dataset.feed] = c.dataset.url);
+      $("#fUrls").value.split("\n").map(x => x.trim()).filter(Boolean).forEach(u => feeds[(() => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch(_) { return u; } })()] = u);
+      go({type: "feeds", feeds}, $("#feGo")); };
+  } else if (e.how === "weather") {
+    el.innerHTML = `<p>${esc(e.blurb)}</p>
+      <div class="row2"><div class="field"><span>Your city</span><input type="text" id="wPlace" placeholder="Madison, Wisconsin"></div>
+        <div class="field"><span>Units</span><select id="wUnits"><option value="fahrenheit">°F</option><option value="celsius">°C</option></select></div></div>
+      <button class="btn primary" id="wGo">Connect</button>`;
+    $("#wGo").onclick = () => go({type: "weather", place: $("#wPlace").value, units: $("#wUnits").value}, $("#wGo"));
+  } else if (e.how === "web") {
+    const any = !e.url;
+    el.innerHTML = `<p>${esc(e.blurb || `LocalAgent opens ${e.name} in its own browser window. You sign in once, there, the normal way — then LocalAgent can read and work in it whenever you ask, like you would.`)}</p>
+      ${any ? `<div class="row2"><div class="field"><span>Website address</span><input type="text" id="webUrl" placeholder="https://myschool.instructure.com"></div>
+        <div class="field"><span>Name</span><input type="text" id="webName" placeholder="School portal"></div></div>` : ""}
+      <p class="note">Your password goes straight into the real site; LocalAgent never sees it. Anything that sends, posts, buys or deletes asks you first.</p>
+      <p class="note">Some sites don't allow automated use of accounts, and using them this way can carry risks like account limits. Check the site's terms if that matters to you.</p>
+      <div class="row"><button class="btn primary" id="webGo">Open ${any ? "it" : esc(e.name)} and sign in</button>
+        <button class="btn" id="webDone" hidden>I'm signed in</button></div>`;
+    let wid = null;
+    $("#webGo").onclick = async () => { const b = $("#webGo"); b.disabled = true; b.textContent = "Opening…";
+      try { const r = await api("/api/web/connect", {catalog: e.id, url: $("#webUrl")?.value, name: $("#webName")?.value});
+        wid = r.id; toast(r.message); b.textContent = "Opened — sign in in the browser window"; $("#webDone").hidden = false; }
+      catch(err) { toast(err.message); b.disabled = false; b.textContent = "Try again"; } };
+    $("#webDone").onclick = async () => { const b = $("#webDone"); b.disabled = true; b.textContent = "Checking…";
+      try { toast((await api(`/api/web/${wid}/check`, {})).message); connOpen = null; renderConnect(); }
+      catch(err) { toast(err.message); b.disabled = false; b.textContent = "I'm signed in"; } };
+  } else if (e.how === "passwords") {
+    const op = e.provider === "1password";
+    el.innerHTML = `<p>${esc(e.blurb)}</p>
+      <p class="note"><b>How it works:</b> when a site asks LocalAgent to sign in, it finds your saved login for <i>that exact website</i>, asks you “Sign in to github.com as ni•••@gmail.com?”, then ${esc(e.name)} fills it straight into the page. The AI only hears “signed in”.</p>
+      ${op ? `<ol class="steps">
+          <li>Install the 1Password command-line tool: open PowerShell and run <code>winget install AgileBits.1Password.CLI</code> (<a href="https://developer.1password.com/docs/cli/get-started/" target="_blank" rel="noopener">guide</a>).</li>
+          <li>In the 1Password app: Settings → Security → turn on <b>Windows Hello</b>; Settings → Developer → turn on <b>Integrate with 1Password CLI</b>.</li>
+          <li>Press Connect. Windows Hello will ask you to approve.</li></ol>`
+      : `<ol class="steps">
+          <li>Install the Bitwarden command-line tool: <code>winget install Bitwarden.CLI</code> (<a href="https://bitwarden.com/help/cli/" target="_blank" rel="noopener">guide</a>).</li>
+          <li>In the Bitwarden web vault: Settings → Security → Keys → <b>View API key</b>. Paste the client_id and client_secret below.</li>
+          <li>After connecting, unlock it with your master password. It's used once to unlock and never saved; LocalAgent locks it again after an hour.</li></ol>
+        <div class="row2"><div class="field"><span>client_id</span><input type="text" id="bwId" autocomplete="off" placeholder="user.xxxxxxxx-…"></div>
+          <div class="field"><span>client_secret</span><input type="password" id="bwSec" autocomplete="off"></div></div>
+        <div class="field"><span>Self-hosted server (optional)</span><input type="text" id="bwSrv" placeholder="https://vault.example.com — leave blank for bitwarden.com"></div>`}
+      <button class="btn primary" id="pmGo">Connect</button>`;
+    $("#pmGo").onclick = () => go({type: "passwords", provider: e.provider, client_id: $("#bwId")?.value.trim(),
+      client_secret: $("#bwSec")?.value.trim(), server: $("#bwSrv")?.value.trim()}, $("#pmGo"));
+  } else if (e.how === "extension") {
+    const pms = {"Dashlane": "dashlane", "Proton Pass": "proton pass", "Keeper": "keeper password manager", "LastPass": "lastpass",
+                 "NordPass": "nordpass", "RoboForm": "roboform", "Enpass": "enpass", "1Password": "1password", "Bitwarden": "bitwarden"};
+    el.innerHTML = `<p>${esc(e.blurb)}</p>
+      <p class="note">Pick yours. Its page opens in LocalAgent's browser; press “Add to Edge/Chrome” there (in Edge, allow extensions from other stores if asked), then sign in to the extension. With an extension, you click its fill button yourself when a site asks — or let 1Password/Bitwarden above do it for you.</p>
+      <div class="row">${Object.entries(pms).map(([n, q]) => `<button class="btn mini" data-ext="${esc(q)}">${esc(n)}</button>`).join("")}</div>`;
+    el.querySelectorAll("[data-ext]").forEach(b => b.onclick = async () => {
+      try { await api("/api/browser/open", {url: "https://chromewebstore.google.com/search/" + encodeURIComponent(b.dataset.ext)}); toast("Opened in LocalAgent's browser."); }
+      catch(err) { toast(err.message); } });
+  } else if (e.how === "none") {
+    el.innerHTML = `<p>${esc(e.blurb)}</p>`;
+  } else if (e.how === "via") {
+    el.innerHTML = `<p>${esc(e.blurb || `${e.name} doesn't let outside apps connect directly yet.`)} Connect <b>Zapier</b>, then turn on ${esc(e.name)} in Zapier's MCP settings.</p>
+      <button class="btn primary" id="vGo">Set up Zapier</button>`;
+    $("#vGo").onclick = () => { connOpen = "zapier"; renderConnect(); };
+  }
+}
+
+/* ---------- phone app over Tailscale ---------- */
+async function renderPhoneApp(){
+  const box = $("#tsBox"); if (!box) return;
+  let r; try { r = await api("/api/remote"); } catch(e) { box.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+  const ts = r.tailscale;
+  if (!ts.installed) { box.innerHTML = `<p>Use LocalAgent from your phone anywhere — the Task board, chat and approvals — over a private link only your devices can open.</p>
+      <p class="note">1. Install Tailscale on this computer and on your phone, and sign in to the same account on both.<br>2. Come back here and turn on phone access.</p>
+      <a class="btn primary" href="https://tailscale.com/download" target="_blank" rel="noopener">Get Tailscale</a> <button class="btn" id="tsAgain">Check again</button>`; }
+  else if (!ts.running) { box.innerHTML = `<p>Tailscale is installed but not connected on this computer. Open Tailscale and sign in, then check again.</p>
+      <button class="btn" id="tsAgain">Check again</button>`; }
+  else if (!r.enabled) { box.innerHTML = `<div class="item"><h3>Phone access</h3><div class="act"><span class="state no">Off</span>
+        <button class="btn primary" id="tsOn">Turn on</button></div>
+      <p>Makes LocalAgent reachable at <b>${esc(ts.dns)}</b> — only from devices signed in to your Tailscale account, and only with a pairing link from this screen.</p></div>`; }
+  else { box.innerHTML = `<div class="item"><h3>Phone access</h3><div class="act"><span class="state ${r.serving ? "ok" : "warn"}">${r.serving ? "On" : "Not reachable"}</span>
+        <button class="btn mini" id="tsNew">New link</button><button class="btn mini" id="tsOff">Turn off</button></div>
+      <p>${r.serving ? "Scan this with your phone's camera (Tailscale must be on), then use “Add to Home Screen” to get an app icon." :
+        "LocalAgent isn't being shared on your tailnet right now. Turn it off and on again; if that fails, enable HTTPS certificates in the Tailscale admin console (DNS page)."}</p></div>
+      ${r.qr ? `<div class="qr" aria-label="Pairing code">${r.qr}</div>` : ""}
+      <div class="linkbox"><input type="text" readonly id="tsLink" value="${esc(r.url)}" aria-label="Pairing link"><button class="btn mini" id="tsCopy">Copy</button></div>
+      <p class="note">Anyone with this link and access to your Tailscale network can control LocalAgent. “New link” signs out every paired phone.</p>`; }
+  const set = async body => { box.querySelectorAll("button").forEach(b => b.disabled = true);
+    try { await api("/api/remote", body); toast(body.enabled ? (body.new_link ? "New link made. Old phones are signed out." : "Phone access is on.") : "Phone access is off."); }
+    catch(e) { toast(e.message); } renderPhoneApp(); };
+  $("#tsAgain") && ($("#tsAgain").onclick = renderPhoneApp);
+  $("#tsOn") && ($("#tsOn").onclick = () => set({enabled: true}));
+  $("#tsOff") && ($("#tsOff").onclick = () => set({enabled: false}));
+  $("#tsNew") && ($("#tsNew").onclick = () => set({enabled: true, new_link: true}));
+  $("#tsCopy") && ($("#tsCopy").onclick = async () => { try { await navigator.clipboard.writeText($("#tsLink").value); toast("Copied."); }
+    catch(e) { $("#tsLink").select(); toast("Press Ctrl+C to copy."); } });
+}
+
+/* ---------- memory ---------- */
+async function renderMemory(){
+  const list = await api("/api/memory"), box = $("#memoryBox");
+  box.innerHTML = `<div class="row2"><div class="field"><input type="text" id="memNew" placeholder="Something it should know, e.g. I prefer short answers"></div>
+      <div class="field"><button class="btn primary" id="memAdd">Remember this</button></div></div>` +
+    (list.map(m => `<div class="item"><h3 style="font-weight:400">${esc(m.text)}</h3>
+      <div class="act"><button class="btn mini" data-mem="${m.id}">Forget</button></div><p>${when(m.created)}</p></div>`).join("") || `<p class="note">Nothing remembered yet.</p>`);
+  $("#memAdd").onclick = async () => { const t = $("#memNew").value.trim(); if (!t) return; await api("/api/memory/add", {text: t}); renderMemory(); };
+  box.querySelectorAll("[data-mem]").forEach(b => b.onclick = async () => { await api("/api/memory/archive", {id: +b.dataset.mem}); toast("Forgotten."); renderMemory(); });
+}
+
+/* ---------- keep the badge fresh; hide the private link ---------- */
+setInterval(() => { if (!busy) refresh().catch(() => {}); }, 15000);
+if (location.search.includes("t=")) history.replaceState(null, "", location.pathname);
+
+/* ---------- first-run wizard ---------- */
+let wstep = 0, wprofile = null;
+function wizard(i){
+  wstep = i; $("#wizard").classList.add("on");
+  document.querySelectorAll("#wsteps li").forEach((li, k) => { li.className = k === i ? "on" : k < i ? "done" : ""; });
+  const body = $("#wbody"), hw = S.hardware;
+  const foot = (next = "Continue", skip = "") => `<div class="wfoot">${skip ? `<button class="btn skip" id="wskip">${skip}</button>` : ""}${i ? `<button class="btn" id="wback">Back</button>` : ""}<button class="btn primary" id="wnext">${next}</button></div>`;
+  if (i === 0) body.innerHTML = `<h1>Meet your agent</h1>
+    <p class="lede">LocalAgent does tasks for you on this computer: organizing files, researching online, reading documents, and using your apps. It runs privately here, asks before risky actions, and never deletes anything — removed files go to a trash you can restore from.</p>
+    <p class="lede">Setup takes about five minutes, most of it downloading.</p>` + foot("Get started");
+  if (i === 1) {
+    wprofile = wprofile || S.recommended_profile;
+    const names = {"gpu-xl": "Very strong graphics card", "gpu-large": "Strong graphics card", "gpu-small": "Graphics card", "laptop": "Everyday laptop"};
+    body.innerHTML = `<h1>Your computer</h1>
+      <p class="lede">${esc(hw.os)} with ${hw.ram_gb} GB of memory${hw.gpu ? ` and ${esc(hw.gpu)}${hw.vram_gb ? ` (${hw.vram_gb} GB)` : ""}` : " and no separate graphics card"}. Here's the local model that fits best.</p>
+      ${Object.entries(S.profiles).map(([k, v]) => `<label class="line"><input type="radio" name="prof" value="${k}" ${k === wprofile ? "checked" : ""}>
+        <span><b>${names[k]}${k === S.recommended_profile ? " (recommended)" : ""}</b><br><span class="note">${esc(v.main)} — ${k === "laptop" ? "light and quick; leans on a subscription for hard jobs" : "handles most jobs on its own"}</span></span></label>`).join("")}` + foot();
+  }
+  if (i === 2) {
+    body.innerHTML = `<h1>Local brain</h1><p class="lede">LocalAgent uses Ollama to run the model on this computer. It's free and keeps your work private.</p><div id="wlocal"></div>` + foot("Continue", "Skip — use subscriptions only");
+    const box = $("#wlocal");
+    const draw = async () => { await refresh();
+      const st = !S.ollama.installed ? "Install Ollama first." : !S.ollama.running ? "Ollama is installed but not running." : "Ollama is running.";
+      box.innerHTML = `<div class="item"><h3>Ollama</h3><div class="act">${!S.ollama.installed ? `<button class="btn primary" id="wi">Install Ollama</button>` : !S.ollama.running ? `<button class="btn primary" id="ws2">Start it</button>` : `<button class="btn primary" id="wd">Download the model</button>`}</div>
+        <p>${st}</p><div class="prog" id="pullProg" hidden><i></i></div><p id="pullMsg" class="note"></p></div>`;
+      $("#wi") && ($("#wi").onclick = async () => { toast((await api("/api/ollama/install", {})).message); const t = setInterval(async () => { await refresh(); if (S.ollama.installed) { clearInterval(t); draw(); } }, 4000); });
+      $("#ws2") && ($("#ws2").onclick = async () => { await api("/api/ollama/start", {}).catch(e => toast(e.message)); setTimeout(draw, 3000); });
+      $("#wd") && ($("#wd").onclick = () => downloadModels(wprofile, box, () => { $("#pullMsg").textContent = "Downloaded. You're ready to continue."; }));
+    };
+    draw();
+  }
+  if (i === 3) {
+    body.innerHTML = `<h1>Subscriptions</h1><p class="lede">Optional. If you pay for ChatGPT or use a Google account, LocalAgent can borrow that brain when a job is too hard for the local model. No API keys — you just sign in.</p><div id="wbrains"></div>` + foot("Continue", "Skip for now");
+    renderBrains($("#wbrains"), true);
+  }
+  if (i === 4) body.innerHTML = `<h1>Your rules</h1><p class="lede">You can change these any time in Settings.</p>` + rulesFields() + foot("Finish setup");
+  $("#wback") && ($("#wback").onclick = () => wizard(i - 1));
+  $("#wskip") && ($("#wskip").onclick = () => wizard(i + 1));
+  $("#wnext").onclick = async () => {
+    if (i === 1) { wprofile = document.querySelector("[name=prof]:checked").value; await api("/api/settings", {profile: wprofile}); await refresh(); }
+    if (i === 4) { await api("/api/settings", {...readRules(), setup_done: true}); $("#wizard").classList.remove("on"); await refresh(); toast("You're all set. Ask for anything."); input.focus(); return; }
+    wizard(i + 1);
+  };
+}
+
+refresh().then(s => { if (!s.setup_done && !phoneSized()) wizard(0);
+  else if (startView && document.querySelector("#p-" + startView)) show(startView);
+  else if (phoneSized()) show("foryou"); else { show("chat"); helloIdeas(); } }).catch(e => toast("Couldn't reach LocalAgent: " + e.message));
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+# Builds downloadable LocalAgent apps for Windows, macOS and Linux on every tag.
+name: build-apps
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Linux GUI deps
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgirepository1.0-dev gir1.2-webkit2-4.1 python3-gi
+      - run: pip install ".[all,dev]" pyinstaller
+      - run: python -m playwright install chromium
+      - run: python -m pytest -q
+      - run: pyinstaller --noconfirm packaging/localagent.spec
+        working-directory: .
+      - name: Zip
+        shell: bash
+        run: |
+          cd dist
+          if [ "$RUNNER_OS" = "macOS" ]; then ditto -c -k --keepParent LocalAgent.app ../LocalAgent-macOS.zip
+          elif [ "$RUNNER_OS" = "Windows" ]; then 7z a ../LocalAgent-Windows.zip LocalAgent
+          else zip -qr ../LocalAgent-Linux.zip LocalAgent; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalAgent-${{ runner.os }}
+          path: LocalAgent-*.zip
